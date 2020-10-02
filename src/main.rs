@@ -83,14 +83,14 @@ fn main() {
 /// For scanning the input regex into a vector of symbols easier to parse
 /// - Input: Regex string to scan
 /// - Output: Vector containing scanned string
-/// KEY:
+/// - KEY:
 ///     - SIGMA -> SIGMA
 ///     - \w -> 1
 ///     - \d -> 2
 ///     - (,{ -> 3
 ///     - ),} -> 4
-///     - * -> 5
-///     - + -> 6
+///     - '*' -> 5
+///     - '+' -> 6
 ///     - | -> 7
 fn scan_regex(reg: &str) -> Vec<char>{
     let mut scanned = Vec::new();
