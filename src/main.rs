@@ -61,6 +61,10 @@ fn main() {
         }
     }
 
+    //Scan reg_ex: method call, input regex, output vec with translation
+    let scanned_reg_ex = scan_regex(reg_ex);
+    println!("{:?}", scanned_reg_ex);
+
     //Parse reg_ex: method call, input regex, output ????, if failed parse print error and exit
 
     //Build a state diagram for reg_ex
@@ -71,15 +75,73 @@ fn main() {
     //To create file: let mut output = File::create("stdout.txt").expect("Unable to create file");
  
     //Read from stdin and print to stderr
-    process_input(reg_ex);
+    process_input();
 
 }
 
 
+/// For scanning the input regex into a vector of symbols easier to parse
+/// - Input: Regex string to scan
+/// - Output: Vector containing scanned string
+/// KEY:
+///     - SIGMA -> SIGMA
+///     - \w -> 1
+///     - \d -> 2
+///     - (,{ -> 3
+///     - ),} -> 4
+///     - * -> 5
+///     - + -> 6
+///     - | -> 7
+fn scan_regex(reg: &str) -> Vec<char>{
+    let mut scanned = Vec::new();
+    let mut special_char = false;
+    for char in reg.chars(){
+        if special_char { // if the previous symbol was a '\'
+            if char == 'w' {
+                scanned.push('1');
+                special_char = false;
+            }
+            else if char == 'd' {
+                scanned.push('2');
+                special_char = false;
+            }
+            else {
+                //ERROR, not a \w or \d, not a valid regex
+                writeln!(std::io::stderr(), "Invalid Input").unwrap();
+		        std::process::exit(1);
+            }
+        }
+        else if SIGMA.contains(&char){
+            scanned.push(char); //push any alphabet characters straight to the vec
+        }
+        else if char == '\\' {
+            special_char = true; //the next char must be a w or a d
+        }
+        else if char == '(' || char == '{' {
+            scanned.push('3');
+        }
+        else if char == ')' || char == '}' {
+            scanned.push('4');
+        }
+        else if char == '*'{
+            scanned.push('5');
+        }
+        else if char == '+'{
+            scanned.push('6');
+        }
+        else if char == '|'{
+            scanned.push('7');
+        }
+    }
+
+    scanned
+}
+
+
 /// For reading input from stdin and printing accept or reject for each line
-/// - Input: Regex regular expression to match input to
+/// - Input: ????
 /// - Output: An accept or reject output followed by the string printed to stderr
-fn process_input(reg: &str) {
+fn process_input() {
     let mut stderr = std::io::stderr();
     let stdin = stdin();
     'outer: for line in stdin.lock().lines() {
