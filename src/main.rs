@@ -65,11 +65,9 @@ fn main() {
     let scanned_reg_ex = scan_regex(reg_ex);
     //println!("{:?}", scanned_reg_ex);
 
-    //Parse reg_ex: method call, input regex, output ????, if failed parse print error and exit
-    parse_regex(scanned_reg_ex);
-
-    //Build a state diagram for reg_ex
-    //Do so in another method, input is ???? from parse, return diagram
+    //Parse reg_ex: method call, input regex, output transition diagram if failed parse print error and exit
+    let trans_table = parse_regex(scanned_reg_ex);
+    println!("Trans_table: \n {:?}", trans_table);
 
     //Print the state diagram to stdut
     //Also do so in another method input is diagram, no return, it creates the file
@@ -147,7 +145,7 @@ fn scan_regex(reg: &str) -> Vec<char>{
 
 /// For parsing the scanned regex input and translating it to a DFA
 /// - Input: Vector containing the scanned regex
-/// - Output: ????
+/// - Output: Vector of vectors containing the transition diagram
 /// - KEY:
 ///     - SIGMA -> SIGMA
 ///     - \w -> !
@@ -157,18 +155,26 @@ fn scan_regex(reg: &str) -> Vec<char>{
 ///     - '*' -> *
 ///     - '+' -> +
 ///     - | -> |
-fn parse_regex(reg: Vec<char>) {
+fn parse_regex(reg: Vec<char>) -> Vec<Vec<String>>{
     let invalid_start_symbols = ['*', '+', ')', '|']; //Close parens/brackets, stars, plus, and bar are invalid start symbols
     if invalid_start_symbols.contains(&reg[0]) {
         //The regex cannot start with those symbols, throw an error
         writeln!(std::io::stderr(), "Invalid Input").unwrap();
         std::process::exit(1);
     }
+    //Set up the transition table
+    let mut transition_table = Vec::new();
+    transition_table.push(new_table_row());
+
+    //Variables for parsing
+    let mut current_state = 0; //for knowing what row is being worked with
     let mut index = 0;
     let mut paren_layer; //for finding the layer of nested paren
     let mut paren_index; //for finding the index of the closing paren
     let mut cont; //for use in while loops for finding closing paren
     let max_index = reg.len() - 1;
+    
+    //Loop through the scanned input and parse it
     while index <= max_index {
         //println!("Index: {}, Symbol: {}", index, reg[index]);
         //Check for symbols that can start statements
@@ -177,18 +183,18 @@ fn parse_regex(reg: Vec<char>) {
         if SIGMA.contains(&reg[index]) || reg[index] == '!' || reg[index] == '@'{
             //symbol is an alphabet character, \w, or \d
             if index < max_index && reg[index+1] == '*' {
-                //call star(&reg[index])
+                star(&reg[index], &mut current_state, &mut transition_table);
                 index += 2; //skip to after star symbol
             }
             else if index < max_index && reg[index+1] == '+' {
-                //call plus(&reg[index])
+                plus(&reg[index], &mut current_state, &mut transition_table);
                 index += 2; //skip to after plus symbol
             }
             else if index < max_index && reg[index+1] == '|' {
-                //index = or(&reg[index]); //skip to after or statement
+                //index = or(&reg[index], &mut current_state, &mut transition_table); //skip to after or statement
             }
             else {
-                //call add(&reg[index])
+                add(&reg[index], &mut current_state, &mut transition_table); //Add this character to the transition diagram
                 index += 1; //go to next symbol
             }
         }
@@ -230,7 +236,7 @@ fn parse_regex(reg: Vec<char>) {
                 //index = paren_or(reg, index, paren_index); //skip to after or statement
             }
             else {
-                //call add(reg, index, paren_index)
+                //call paren_add(reg, index, paren_index)
                 index = paren_index + 1; //go to symbol after parens close
             }
 
@@ -241,9 +247,15 @@ fn parse_regex(reg: Vec<char>) {
             std::process::exit(1);
         }
     }
+    //add a final vec holding the accept state
+    let mut accept_states = Vec::new();
+    accept_states.push("X".to_string()); //mark start with an Xs
+    accept_states.push(current_state.to_string());
+    transition_table.push(accept_states);
+    transition_table
 }
 
-/// A helper function for parse_regex
+/// A helper for parse_regex
 /// - Input: The current character and the next character
 /// - Output: Boolean value, true if the next character is valid and false if not
 fn invalid_next(first: char, next: &char) -> bool {
@@ -269,6 +281,114 @@ fn invalid_next(first: char, next: &char) -> bool {
         else {true}
     }
     else {true} //Other characters can have any character follow them
+}
+
+/// A function to add a single input character to the transition table
+/// - Input: A character that must be input to reach a state, the current state as a mut value, and the transition table
+/// - Output: None, the mut parameters are changed as needed
+fn add(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>) {
+    let next_state = *state + 1;
+    let alpha = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'];
+    let num = ['0','1','2','3','4','5','6','7','8','9'];
+    if *symbol == '!' {
+        //symbol is \w so any alpha value will do
+        let mut i = 0; //index for keepting track of where you are in the transition table row
+        for char in SIGMA.iter() {
+            if alpha.contains(char) {
+                //This is a char needed to transition to the next state
+                table[*state as usize][i] = next_state.to_string();
+            }
+            i += 1;
+        }
+    }
+    else if *symbol == '@' {
+        //symbol is \d so any num value will do
+        let mut i = 0; //index for keepting track of where you are in the transition table row
+        for char in SIGMA.iter() {
+            if num.contains(char) {
+                //This is a char needed to transition to the next state
+                table[*state as usize][i] = next_state.to_string();
+            }
+            i += 1;
+        }
+
+    }
+    else {
+        //symbol is specific
+        let mut i = 0; //index for keepting track of where you are in the transition table row
+        for char in SIGMA.iter() {
+            if symbol == char {
+                //This is the char needed to transition to the next state
+                table[*state as usize][i] = next_state.to_string();
+            }
+            i += 1;
+        }
+    }
+    *state = *state + 1;
+    table.push(new_table_row()); //add next row for next state
+}
+
+/// A function to add a starred input character to the transition table
+/// - Input: Char that is starred, current state as a mut value, and the transition table
+/// - Output: None, the mut parameters are changed as needed
+fn star(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>){
+    let alpha = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'];
+    let num = ['0','1','2','3','4','5','6','7','8','9'];
+    if *symbol == '!' {
+        //symbol is \w so any alpha value will do
+        let mut i = 0; //index for keepting track of where you are in the transition table row
+        for char in SIGMA.iter() {
+            if alpha.contains(char) {
+                //This is a char needed to transition to the next state
+                table[*state as usize][i] = state.to_string();
+            }
+            i += 1;
+        }
+    }
+    else if *symbol == '@' {
+        //symbol is \d so any num value will do
+        let mut i = 0; //index for keepting track of where you are in the transition table row
+        for char in SIGMA.iter() {
+            if num.contains(char) {
+                //This is a char needed to transition to the next state
+                table[*state as usize][i] = state.to_string();
+            }
+            i += 1;
+        }
+
+    }
+    else {
+        //symbol is specific
+        let mut i = 0; //index for keepting track of where you are in the transition table row
+        for char in SIGMA.iter() {
+            if symbol == char {
+                //This is the char needed to transition to the next state
+                table[*state as usize][i] = state.to_string();
+            }
+            else {
+            i += 1;
+            }
+        }
+    }
+}
+
+/// A function to add a 'plussed' input character to the transition table
+/// - Input: Char that is starred, current state as a mut value, and the transition table
+/// - Output: None, the mut parameters are changed as needed
+fn plus(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>) {
+    add(symbol, state, table); // character must be entered at least once
+    star(symbol, state, table); // it can then be treated like a starred character
+}
+
+/// For creating a blank row to add to the transition table where all elements are defined
+/// - Input: None
+/// - Output: A blank row to add to the transition table, where for every element of SIGMA there is a " "
+fn new_table_row() -> Vec::<String> {
+    let mut row = Vec::<String>::new();
+    for _char in SIGMA.iter() {
+        row.push(" ".to_string());
+    }
+    row
 }
 
 /// For reading input from stdin and printing accept or reject for each line
