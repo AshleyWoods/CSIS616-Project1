@@ -63,9 +63,10 @@ fn main() {
 
     //Scan reg_ex: method call, input regex, output vec with translation
     let scanned_reg_ex = scan_regex(reg_ex);
-    println!("{:?}", scanned_reg_ex);
+    //println!("{:?}", scanned_reg_ex);
 
     //Parse reg_ex: method call, input regex, output ????, if failed parse print error and exit
+    parse_regex(scanned_reg_ex);
 
     //Build a state diagram for reg_ex
     //Do so in another method, input is ???? from parse, return diagram
@@ -85,24 +86,25 @@ fn main() {
 /// - Output: Vector containing scanned string
 /// - KEY:
 ///     - SIGMA -> SIGMA
-///     - \w -> 1
-///     - \d -> 2
-///     - (,{ -> 3
-///     - ),} -> 4
-///     - '*' -> 5
-///     - '+' -> 6
-///     - | -> 7
+///     - \w -> !
+///     - \d -> @
+///     - (,{ -> (
+///     - ),} -> {
+///     - '*' -> *
+///     - '+' -> +
+///     - | -> |
 fn scan_regex(reg: &str) -> Vec<char>{
     let mut scanned = Vec::new();
     let mut special_char = false;
+    let mut paren_count = 0; //used to make sure each ( and { has a matching ) or }
     for char in reg.chars(){
         if special_char { // if the previous symbol was a '\'
             if char == 'w' {
-                scanned.push('1');
+                scanned.push('!');
                 special_char = false;
             }
             else if char == 'd' {
-                scanned.push('2');
+                scanned.push('@');
                 special_char = false;
             }
             else {
@@ -118,25 +120,156 @@ fn scan_regex(reg: &str) -> Vec<char>{
             special_char = true; //the next char must be a w or a d
         }
         else if char == '(' || char == '{' {
-            scanned.push('3');
+            scanned.push('(');
+            paren_count += 1; //enter a paren
         }
         else if char == ')' || char == '}' {
-            scanned.push('4');
+            scanned.push(')');
+            paren_count -= 1; //exit a paren
         }
         else if char == '*'{
-            scanned.push('5');
+            scanned.push('*');
         }
         else if char == '+'{
-            scanned.push('6');
+            scanned.push('+');
         }
         else if char == '|'{
-            scanned.push('7');
+            scanned.push('|');
         }
     }
-
+    if paren_count != 0 {
+        //not every parenthasis closes, error
+        writeln!(std::io::stderr(), "Invalid Input").unwrap();
+        std::process::exit(1);
+    }
     scanned
 }
 
+/// For parsing the scanned regex input and translating it to a DFA
+/// - Input: Vector containing the scanned regex
+/// - Output: ????
+/// - KEY:
+///     - SIGMA -> SIGMA
+///     - \w -> !
+///     - \d -> @
+///     - (,{ -> (
+///     - ),} -> {
+///     - '*' -> *
+///     - '+' -> +
+///     - | -> |
+fn parse_regex(reg: Vec<char>) {
+    let invalid_start_symbols = ['*', '+', ')', '|']; //Close parens/brackets, stars, plus, and bar are invalid start symbols
+    if invalid_start_symbols.contains(&reg[0]) {
+        //The regex cannot start with those symbols, throw an error
+        writeln!(std::io::stderr(), "Invalid Input").unwrap();
+        std::process::exit(1);
+    }
+    let mut index = 0;
+    let mut paren_layer; //for finding the layer of nested paren
+    let mut paren_index; //for finding the index of the closing paren
+    let mut cont; //for use in while loops for finding closing paren
+    let max_index = reg.len() - 1;
+    while index <= max_index {
+        //println!("Index: {}, Symbol: {}", index, reg[index]);
+        //Check for symbols that can start statements
+        //This means either plain alphabet characters, \d, \w, (, or }
+        //All other characters are somehow part of a sequence started by these characters
+        if SIGMA.contains(&reg[index]) || reg[index] == '!' || reg[index] == '@'{
+            //symbol is an alphabet character, \w, or \d
+            if index < max_index && reg[index+1] == '*' {
+                //call star(&reg[index])
+                index += 2; //skip to after star symbol
+            }
+            else if index < max_index && reg[index+1] == '+' {
+                //call plus(&reg[index])
+                index += 2; //skip to after plus symbol
+            }
+            else if index < max_index && reg[index+1] == '|' {
+                //index = or(&reg[index]); //skip to after or statement
+            }
+            else {
+                //call add(&reg[index])
+                index += 1; //go to next symbol
+            }
+        }
+        else if reg[index] == '(' {
+            //symbol is an open bracket or parens
+            if !invalid_next('(', &reg[index+1]) {
+                //if the next character is invalid throw an error
+                writeln!(std::io::stderr(), "Invalid Input").unwrap();
+                std::process::exit(1);
+            }
+            
+            paren_index = index + 1; //start checking for closing paren in next index
+            paren_layer = 0; //in case there are nested parens
+            cont = true; //for continuing until the closing paren is found
+            while cont {
+                //find the matching paren index
+                if reg[paren_index] == '(' {
+                    paren_layer += 1; //enter a nested paren
+                }
+                else if reg[paren_index] == ')' && paren_layer == 0 {
+                    cont = false; //found the closing paren
+                }
+                else if reg[paren_index] == ')' && paren_layer > 0 {
+                    paren_layer -= 1; //wrong closing paren, exit nested paren
+                }
+                paren_index += 1; //check next index
+            }
+            // paren_index now contains the index of the closing paren and it can be passed to a helper
+            // first check for *, +, or | after the parens close
+            if paren_index < max_index && reg[paren_index+1] == '*' {
+                //call paren_star(reg, index, paren_index)
+                index = paren_index + 2; //skip to after star symbol
+            }
+            else if paren_index < max_index && reg[paren_index+1] == '+' {
+                //call paren_plus(reg, index, paren_index)
+                index = paren_index + 2; //skip to after plus symbol
+            }
+            else if paren_index < max_index && reg[paren_index+1] == '|' {
+                //index = paren_or(reg, index, paren_index); //skip to after or statement
+            }
+            else {
+                //call add(reg, index, paren_index)
+                index = paren_index + 1; //go to symbol after parens close
+            }
+
+        }
+        else {
+            //There's been a parsing error and an invalid character has been found
+            writeln!(std::io::stderr(), "Error Parsing input").unwrap();
+            std::process::exit(1);
+        }
+    }
+}
+
+/// A helper function for parse_regex
+/// - Input: The current character and the next character
+/// - Output: Boolean value, true if the next character is valid and false if not
+fn invalid_next(first: char, next: &char) -> bool {
+    // A { or ( cannot be followed by a *, +, or |
+    if first == '(' {
+        if *next == '*' || *next == '+' || *next == '|' {
+            false
+        }
+        else {true}
+    }
+    // A | cannot be followed by a *, +, |, ), or }
+    else if first == '|' {
+        if *next == ')' || *next == '*' || *next == '+' || *next == '|'{
+            false
+        }
+        else {true}
+    }
+    // A + or * cannot be followed by a * or +
+    else if first == '*' || first == '+' {
+        if *next == '*' || *next == '+' {
+            false
+        }
+        else {true}
+    }
+    else {true} //Other characters can have any character follow them
+}
 
 /// For reading input from stdin and printing accept or reject for each line
 /// - Input: ????
