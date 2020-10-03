@@ -25,7 +25,7 @@
 
 
 use std::io::Write; //for writing to output file and stderr
-use std::fs::File; //for creating output file
+//use std::fs::File; //for creating output file
 use std::io::stdin; //for reading from stdin
 use std::io::prelude::*; //for reading from stdin
 
@@ -165,6 +165,8 @@ fn parse_regex(reg: Vec<char>) -> Vec<Vec<String>>{
     //Set up the transition table
     let mut transition_table = Vec::new();
     transition_table.push(new_table_row());
+    let mut accept_states = Vec::new();
+    accept_states.push("X".to_string());
 
     //Variables for parsing
     let mut current_state = 0; //for knowing what row is being worked with
@@ -183,15 +185,31 @@ fn parse_regex(reg: Vec<char>) -> Vec<Vec<String>>{
         if SIGMA.contains(&reg[index]) || reg[index] == '!' || reg[index] == '@'{
             //symbol is an alphabet character, \w, or \d
             if index < max_index && reg[index+1] == '*' {
-                star(&reg[index], &mut current_state, &mut transition_table);
-                index += 2; //skip to after star symbol
+                if index + 1 < max_index && reg[index+2] == '|'{
+                    let or_return = or(index, &reg, &mut current_state, &mut transition_table, 'S');
+                    accept_states = or_return.1;
+                    index = or_return.0;
+                }
+                else {
+                    star(&reg[index], &mut current_state, &mut transition_table);
+                    index += 2; //skip to after star symbol
+                }
             }
             else if index < max_index && reg[index+1] == '+' {
-                plus(&reg[index], &mut current_state, &mut transition_table);
-                index += 2; //skip to after plus symbol
+                if index + 1 < max_index && reg[index+2] == '|'{
+                    let or_return = or(index, &reg, &mut current_state, &mut transition_table, 'P');
+                    accept_states = or_return.1;
+                    index = or_return.0;
+                }
+                else {
+                    plus(&reg[index], &mut current_state, &mut transition_table);
+                    index += 2; //skip to after plus symbol
+                }
             }
             else if index < max_index && reg[index+1] == '|' {
-                //index = or(&reg[index], &mut current_state, &mut transition_table); //skip to after or statement
+                let or_return = or(index, &reg, &mut current_state, &mut transition_table, 'N'); //skip to after or statement
+                accept_states = or_return.1;
+                index = or_return.0;
             }
             else {
                 add(&reg[index], &mut current_state, &mut transition_table); //Add this character to the transition diagram
@@ -248,8 +266,6 @@ fn parse_regex(reg: Vec<char>) -> Vec<Vec<String>>{
         }
     }
     //add a final vec holding the accept state
-    let mut accept_states = Vec::new();
-    accept_states.push("X".to_string()); //mark start with an Xs
     accept_states.push(current_state.to_string());
     transition_table.push(accept_states);
     transition_table
@@ -324,7 +340,7 @@ fn add(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>) {
             i += 1;
         }
     }
-    *state = *state + 1;
+    *state = next_state;
     table.push(new_table_row()); //add next row for next state
 }
 
@@ -378,6 +394,206 @@ fn star(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>){
 fn plus(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>) {
     add(symbol, state, table); // character must be entered at least once
     star(symbol, state, table); // it can then be treated like a starred character
+}
+
+/// A function to add an or statement to the transition table
+/// - Input: Char that is starred, current state as a mut value, and the transition table
+/// - Output: New index to jump to (the index after the last char of the or statement)
+fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<String>>, special: char) -> (usize, Vec<String>) {
+    let left_or = regex[index];
+    let mut index_jump = 2;
+    let mut next_state = *state + 1;
+    let alpha = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'];
+    let num = ['0','1','2','3','4','5','6','7','8','9'];
+    
+    let mut acc_states = Vec::new(); //for when things get complex
+
+    if special == 'S' {
+        (index, acc_states) // an or statement where the left is a symbol*
+    }
+    else if special == 'P' {
+        (index, acc_states) // an or statement where the left is a symbol+
+    }
+    else {
+
+    //check that there is a right side of the or, and that it has valid input
+    if (index+2) >= regex.len() || !invalid_next('|', &regex[index+2]){
+        //if the next character is invalid throw an error
+        writeln!(std::io::stderr(), "Invalid Input").unwrap();
+       std::process::exit(1);
+    }
+    //Check what is on the other side of the or
+    if regex[index+2] == '(' {
+        // There is a statement on the other side bounded by parens
+
+    }
+    else{
+        let right_or = regex[index+2];
+        // There is not a parenthetical argument on the other side
+        // Check if the next character has a *, +, or | operation on it
+        if (index+3) < regex.len() && regex[index+3] == '*' {
+            //left_or | starred right_or, check for another |
+            index_jump = 4;
+            if (index+4) < regex.len() && regex[index+4] == '|' {
+                //call a helper for stacked_or, really complex
+            }
+            else {
+                // This gets complicated here
+                let state_holder = *state; //this will still be an accept state
+                add(&left_or, state, table); //add the first symbol, get back second accept state
+                next_state = *state + 1;
+                if right_or == '!' {
+                    //symbol is \w so any alpha value will do
+                    let mut i = 0; //index for keepting track of where you are in the transition table row
+                    for char in SIGMA.iter() {
+                        if alpha.contains(char) {
+                            //This is a char needed to transition to the next state
+                            table[state_holder as usize][i] = next_state.to_string();
+                        }
+                        i += 1;
+                    }
+                }
+                else if right_or == '@' {
+                    //symbol is \d so any num value will do
+                    let mut i = 0; //index for keepting track of where you are in the transition table row
+                    for char in SIGMA.iter() {
+                        if num.contains(char) {
+                            //This is a char needed to transition to the next state
+                            table[state_holder as usize][i] = next_state.to_string();
+                        }
+                        i += 1;
+                    }
+            
+                }
+                else {
+                    let mut i = 0; //index for keepting track of where you are in the transition table row
+                    for char in SIGMA.iter() {
+                        if right_or == *char {
+                            //This is the char needed to transition to the next state
+                            table[state_holder as usize][i] = next_state.to_string();
+                        }
+                        i += 1;
+                    }
+                }
+                let state_holder_2 = *state; //holds second accepting state
+                *state = next_state;
+                table.push(new_table_row());
+                star(&right_or, state, table);
+                next_state = *state;
+                acc_states.push(state_holder.to_string());
+                acc_states.push(state_holder_2.to_string());
+                acc_states.push(state.to_string());
+                //accept states are currently in state_holder, state_holder_2, and state
+            }
+
+        }
+        else if (index+3) < regex.len() && regex[index+3] == '+' {
+            //left_or | plus right_or, check for another |
+            index_jump = 4;
+            if (index+4) < regex.len() && regex[index+4] == '|' {
+                //call a helper for stacked_or, really complex
+            }
+            else {
+                // this gets complicated here
+                // This gets complicated here
+                let state_holder = *state; //this will NOT still be an accept state
+                add(&left_or, state, table); //add the first symbol, get back second accept state
+                next_state = *state + 1;
+                if right_or == '!' {
+                    //symbol is \w so any alpha value will do
+                    let mut i = 0; //index for keepting track of where you are in the transition table row
+                    for char in SIGMA.iter() {
+                        if alpha.contains(char) {
+                            //This is a char needed to transition to the next state
+                            table[state_holder as usize][i] = next_state.to_string();
+                        }
+                        i += 1;
+                    }
+                }
+                else if right_or == '@' {
+                    //symbol is \d so any num value will do
+                    let mut i = 0; //index for keepting track of where you are in the transition table row
+                    for char in SIGMA.iter() {
+                        if num.contains(char) {
+                            //This is a char needed to transition to the next state
+                            table[state_holder as usize][i] = next_state.to_string();
+                        }
+                        i += 1;
+                    }
+            
+                }
+                else {
+                    
+                    let mut i = 0; //index for keepting track of where you are in the transition table row
+                    for char in SIGMA.iter() {
+                        if right_or == *char {
+                            //This is the char needed to transition to the next state
+                            table[state_holder as usize][i] = next_state.to_string();
+                        }
+                        i += 1;
+                    }
+                }
+                let state_holder_2 = *state; //holds second accepting state
+                *state = next_state;
+                table.push(new_table_row());
+                star(&right_or, state, table);
+                next_state = *state; //to make double sure
+                acc_states.push(state_holder_2.to_string());
+                acc_states.push(state.to_string());
+                //accept states are currently in state_holder_2, and state
+            }
+        }
+        else if (index+3) < regex.len() && regex[index+3] == '|' {
+            //left_or | right_or | another_thing, check for another |
+            // call a helper for stacked_or
+            index_jump = 4;
+        }
+        else {
+            index_jump = 3;
+            //simple left_or char | right_or char
+            if left_or == '!' || right_or == '!'{
+                //symbol is \w so any alpha value will do
+                let mut i = 0; //index for keepting track of where you are in the transition table row
+                for char in SIGMA.iter() {
+                    if alpha.contains(char) {
+                        //This is a char needed to transition to the next state
+                        table[*state as usize][i] = next_state.to_string();
+                    }
+                    i += 1;
+                }
+            }
+            if left_or == '@' || right_or == '@'{
+                //symbol is \d so any num value will do
+                let mut i = 0; //index for keepting track of where you are in the transition table row
+                for char in SIGMA.iter() {
+                    if num.contains(char) {
+                        //This is a char needed to transition to the next state
+                        table[*state as usize][i] = next_state.to_string();
+                    }
+                    i += 1;
+                }
+            }
+            if left_or != '!' || left_or != '@' || right_or != '!' || right_or != '@' {
+                //symbol is specific
+                let mut i = 0; //index for keepting track of where you are in the transition table row
+                for char in SIGMA.iter() {
+                    if left_or == *char {
+                        //This is a char needed to transition to the next state
+                        table[*state as usize][i] = next_state.to_string();
+                    }
+                    else if right_or == *char {
+                        //This is a char needed to transition to the next state
+                        table[*state as usize][i] = next_state.to_string();
+                    }
+                    i += 1;
+                }
+            }
+            table.push(new_table_row()); //add next row for next state
+        }
+    }
+    *state = next_state;
+    (index + index_jump, acc_states)
+    }   
 }
 
 /// For creating a blank row to add to the transition table where all elements are defined
