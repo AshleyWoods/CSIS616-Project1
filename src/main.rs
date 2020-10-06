@@ -25,7 +25,7 @@
 
 
 use std::io::Write; //for writing to output file and stderr
-//use std::fs::File; //for creating output file
+use std::fs::File; //for creating output file
 use std::io::stdin; //for reading from stdin
 use std::io::prelude::*; //for reading from stdin
 
@@ -69,9 +69,9 @@ fn main() {
     let trans_table = parse_regex(scanned_reg_ex);
     println!("Trans_table: \n {:?}", trans_table);
 
-    //Print the state diagram to stdut
+    //Print the state diagram to stdout
     //Also do so in another method input is diagram, no return, it creates the file
-    //To create file: let mut output = File::create("stdout.txt").expect("Unable to create file");
+    print_state_diagram(&trans_table);
  
     //Read from stdin and print to stderr
     process_input(trans_table);
@@ -743,4 +743,55 @@ fn check_string(input: &str, table: &Vec<Vec<String>>) -> bool{
         if state == &curr_state.to_string() {return true} //valid end state reached!
     }
     false //end state not reached
+}
+
+/// For printing the transition table as a state diagram to stdout.txt
+/// - Input: Transition table
+/// - Output: None
+fn print_state_diagram(table: &Vec<Vec<String>>){
+    let mut output = File::create("stdout.txt").expect("Unable to create file");
+    //opening lines
+    output.write(b"diagraph {\n\n\t node [shape=point]; start;\n").expect("Unable to write to file");
+
+    //insert end states for the double circle label
+    for state in &table[table.len()-1] { //loop through the accept state row
+        if state == "X" {
+            //This is just the marker for the accept state row, ignore
+        }
+        else {
+            output.write(b"\t ").expect("Unable to write to file");
+            output.write(state.as_bytes()).expect("Unable to write to file");
+            output.write(b" [shape=doublecircle];\n").expect("Unable to write to file");
+        }
+    }
+
+    //transition to next section of file
+    output.write(b"\t node [shape=circle];\n\n\t start -> 0;\n").expect("Unable to write to file");
+
+    //translate state diagram to transitions on a graph
+    let mut row_num = 0;
+    let mut i;
+    for row in table{
+        i = 0;
+        if row_num == table.len()-1 {
+            //This is the accept state row, should not be used here
+            continue;
+        }
+        for transition in row {
+            if transition != " " {
+                output.write(b"\t ").expect("Unable to write to file");
+                output.write(row_num.to_string().as_bytes()).expect("Unable to write to file");
+                output.write(b" -> ").expect("Unable to write to file");
+                output.write(table[row_num][i].as_bytes()).expect("Unable to write to file");
+                output.write(b" [label=\"").expect("Unable to write to file");
+                output.write(SIGMA[i].to_string().as_bytes()).expect("Unable to write to file");
+                output.write(b"\"];\n").expect("Unable to write to file");
+            }
+            i += 1;
+        }
+        row_num += 1;
+    }
+
+    //end and close file
+    output.write(b"\n}").expect("Unable to write to file");
 }
