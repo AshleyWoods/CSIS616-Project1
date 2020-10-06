@@ -74,7 +74,7 @@ fn main() {
     //To create file: let mut output = File::create("stdout.txt").expect("Unable to create file");
  
     //Read from stdin and print to stderr
-    process_input();
+    process_input(trans_table);
 
 }
 
@@ -695,9 +695,9 @@ fn new_table_row() -> Vec::<String> {
 }
 
 /// For reading input from stdin and printing accept or reject for each line
-/// - Input: ????
+/// - Input: Transition table
 /// - Output: An accept or reject output followed by the string printed to stderr
-fn process_input() {
+fn process_input(table: Vec<Vec<String>>) {
     let mut stderr = std::io::stderr();
     let stdin = stdin();
     'outer: for line in stdin.lock().lines() {
@@ -707,16 +707,40 @@ fn process_input() {
         for char in string.chars() {
             if !SIGMA.contains(&char) {
                 //if not, string is rejected
-                writeln!(&mut stderr, "Reject {}", string).unwrap();
+                writeln!(&mut stderr, "Reject {}", &string).unwrap();
                 continue 'outer; //continues the outer for loop to go to next string and skip regex
             }
         }
         
         //if string chars are valid, make sure it matches the regex
-        if true{ //Check to see if it matches the regex here
-            writeln!(&mut stderr, "Accept {}", string).unwrap();
+        if check_string(&string, &table){ //Check to see if it matches the regex here
+            writeln!(&mut stderr, "Accept {}", &string).unwrap();
         }else {
-            writeln!(&mut stderr, "Reject {}", string).unwrap();
+            writeln!(&mut stderr, "Reject {}", &string).unwrap();
         }
     }
+}
+
+
+/// For navigating the transition table and seeing if strings are valid
+/// - Input: String and transition table
+/// - Output: Boolean, true if string is valid, false if not
+fn check_string(input: &str, table: &Vec<Vec<String>>) -> bool{
+    let mut curr_state = 0;
+    let len = table.len()-1;
+    for char in input.chars() {
+        if curr_state > len-1 {
+            return false //something went wrong
+        }
+        else if table[curr_state][SIGMA.iter().position(|&x| x==char ).unwrap()] == " " {
+            return false //there is no transition for this input from this state
+        }
+        else {
+            curr_state = table[curr_state][SIGMA.iter().position(|&x| x==char ).unwrap()].parse::<u32>().unwrap() as usize;
+        }
+    }
+    for state in &table[len] {
+        if state == &curr_state.to_string() {return true} //valid end state reached!
+    }
+    false //end state not reached
 }
