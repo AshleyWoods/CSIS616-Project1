@@ -186,33 +186,27 @@ fn parse_regex(reg: Vec<char>) -> Vec<Vec<String>>{
             //symbol is an alphabet character, \w, or \d
             if index < max_index && reg[index+1] == '*' {
                 if index + 1 < max_index && reg[index+2] == '|'{
-                    let or_return = or(index, &reg, &mut current_state, &mut transition_table, 'S');
-                    accept_states = or_return.1;
-                    index = or_return.0;
+                    index = or(index, &reg, &mut current_state, &mut transition_table, 'S', &mut accept_states);
                 }
                 else {
-                    star(&reg[index], &mut current_state, &mut transition_table);
+                    star(&reg[index], &mut current_state, &mut transition_table, &mut accept_states);
                     index += 2; //skip to after star symbol
                 }
             }
             else if index < max_index && reg[index+1] == '+' {
                 if index + 1 < max_index && reg[index+2] == '|'{
-                    let or_return = or(index, &reg, &mut current_state, &mut transition_table, 'P');
-                    accept_states = or_return.1;
-                    index = or_return.0;
+                    index = or(index, &reg, &mut current_state, &mut transition_table, 'P', &mut accept_states);
                 }
                 else {
-                    plus(&reg[index], &mut current_state, &mut transition_table);
+                    plus(&reg[index], &mut current_state, &mut transition_table, &mut accept_states);
                     index += 2; //skip to after plus symbol
                 }
             }
             else if index < max_index && reg[index+1] == '|' {
-                let or_return = or(index, &reg, &mut current_state, &mut transition_table, 'N'); //skip to after or statement
-                accept_states = or_return.1;
-                index = or_return.0;
+                index = or(index, &reg, &mut current_state, &mut transition_table, 'N', &mut accept_states); //skip to after or statement
             }
             else {
-                add(&reg[index], &mut current_state, &mut transition_table); //Add this character to the transition diagram
+                add(&reg[index], &mut current_state, &mut transition_table, &mut accept_states); //Add this character to the transition diagram
                 index += 1; //go to next symbol
             }
         }
@@ -302,44 +296,93 @@ fn invalid_next(first: char, next: &char) -> bool {
 /// A function to add a single input character to the transition table
 /// - Input: A character that must be input to reach a state, the current state as a mut value, and the transition table
 /// - Output: None, the mut parameters are changed as needed
-fn add(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>) {
+fn add(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>, accept: &mut Vec<String>) {
     let next_state = *state + 1;
     let alpha = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'];
     let num = ['0','1','2','3','4','5','6','7','8','9'];
     if *symbol == '!' {
         //symbol is \w so any alpha value will do
-        let mut i = 0; //index for keepting track of where you are in the transition table row
-        for char in SIGMA.iter() {
-            if alpha.contains(char) {
-                //This is a char needed to transition to the next state
-                table[*state as usize][i] = next_state.to_string();
+        if accept.len() == 1 || accept[1] == state.to_string() {
+            //There is only one accept state 
+            let mut i = 0; //index for keepting track of where you are in the transition table row
+            for char in SIGMA.iter() {
+                if alpha.contains(char) {
+                    //This is a char needed to transition to the next state
+                    table[*state as usize][i] = next_state.to_string();
+                }
+                i += 1;
             }
-            i += 1;
+        }
+        else {
+            //There is more than one accept state right now
+            for st in &*accept {
+                if st == "X" { continue;}
+                let mut i = 0;
+                for char in SIGMA.iter() {
+                    if alpha.contains(char) {
+                        //This is a char needed to transition to the next state
+                        table[st.parse::<u32>().unwrap() as usize][i] = next_state.to_string();
+                    }
+                    i += 1;
+                }
+            }
         }
     }
     else if *symbol == '@' {
-        //symbol is \d so any num value will do
-        let mut i = 0; //index for keepting track of where you are in the transition table row
-        for char in SIGMA.iter() {
-            if num.contains(char) {
-                //This is a char needed to transition to the next state
-                table[*state as usize][i] = next_state.to_string();
+        if accept.len() == 1 || accept[1] == state.to_string() {
+            //symbol is \d so any num value will do
+            let mut i = 0; //index for keepting track of where you are in the transition table row
+            for char in SIGMA.iter() {
+                if num.contains(char) {
+                    //This is a char needed to transition to the next state
+                    table[*state as usize][i] = next_state.to_string();
+                }
+                i += 1;
             }
-            i += 1;
         }
-
+        else {
+            //There is more than one accept state right now
+            for st in &*accept {
+                if st == "X" { continue;}
+                let mut i = 0;
+                for char in SIGMA.iter() {
+                    if num.contains(char) {
+                        //This is a char needed to transition to the next state
+                        table[st.parse::<u32>().unwrap() as usize][i] = next_state.to_string();
+                    }
+                    i += 1;
+                }
+            }
+        }
     }
     else {
         //symbol is specific
-        let mut i = 0; //index for keepting track of where you are in the transition table row
-        for char in SIGMA.iter() {
-            if symbol == char {
-                //This is the char needed to transition to the next state
-                table[*state as usize][i] = next_state.to_string();
+        if accept.len() == 1 || accept[1] == state.to_string() {
+            let mut i = 0; //index for keepting track of where you are in the transition table row
+            for char in SIGMA.iter() {
+                if symbol == char {
+                    //This is the char needed to transition to the next state
+                    table[*state as usize][i] = next_state.to_string();
+                }
+                i += 1;
             }
-            i += 1;
+        }
+        else {
+            for st in &*accept {
+                if st == "X" {continue;}
+                let mut i = 0;
+                for char in SIGMA.iter() {
+                    if symbol == char {
+                        table[st.parse::<u32>().unwrap() as usize][i] = next_state.to_string();
+                    }
+                    i += 1;
+                }
+            }
         }
     }
+    let mut holder = Vec::<String>::new();
+    holder.push("X".to_string());
+    *accept = holder; //resets the accept states
     *state = next_state;
     table.push(new_table_row()); //add next row for next state
 }
@@ -347,42 +390,84 @@ fn add(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>) {
 /// A function to add a starred input character to the transition table
 /// - Input: Char that is starred, current state as a mut value, and the transition table
 /// - Output: None, the mut parameters are changed as needed
-fn star(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>){
+fn star(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>> , accept: &mut Vec<String>){
     let alpha = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'];
     let num = ['0','1','2','3','4','5','6','7','8','9'];
     if *symbol == '!' {
         //symbol is \w so any alpha value will do
-        let mut i = 0; //index for keepting track of where you are in the transition table row
-        for char in SIGMA.iter() {
-            if alpha.contains(char) {
-                //This is a char needed to transition to the next state
-                table[*state as usize][i] = state.to_string();
+        if accept.len() == 1 || accept[1] == state.to_string() {
+            let mut i = 0; //index for keepting track of where you are in the transition table row
+            for char in SIGMA.iter() {
+                if alpha.contains(char) {
+                    //This is a char needed to transition to the next state
+                    table[*state as usize][i] = state.to_string();
+                }
+                i += 1;
             }
-            i += 1;
+        }
+        else {
+            for st in &*accept {
+                if st == "X" {continue;}
+                let mut i = 0; //index for keepting track of where you are in the transition table row
+                for char in SIGMA.iter() {
+                    if alpha.contains(char) {
+                        //This is a char needed to transition to the next state
+                        table[st.parse::<u32>().unwrap() as usize][i] = state.to_string();
+                    }
+                    i += 1;
+                }
+            }
         }
     }
     else if *symbol == '@' {
         //symbol is \d so any num value will do
-        let mut i = 0; //index for keepting track of where you are in the transition table row
-        for char in SIGMA.iter() {
-            if num.contains(char) {
-                //This is a char needed to transition to the next state
-                table[*state as usize][i] = state.to_string();
+        if accept.len() == 1 || accept[1] == state.to_string() {
+            let mut i = 0; //index for keepting track of where you are in the transition table row
+            for char in SIGMA.iter() {
+                if num.contains(char) {
+                    //This is a char needed to transition to the next state
+                    table[*state as usize][i] = state.to_string();
+                }
+                i += 1;
             }
-            i += 1;
         }
-
+        else {
+            for st in &*accept {
+                if st == "X" {continue;}
+                let mut i = 0; //index for keepting track of where you are in the transition table row
+                for char in SIGMA.iter() {
+                    if num.contains(char) {
+                        //This is a char needed to transition to the next state
+                        table[st.parse::<u32>().unwrap() as usize][i] = state.to_string();
+                    }
+                    i += 1;
+                }
+            }
+        }
     }
     else {
         //symbol is specific
-        let mut i = 0; //index for keepting track of where you are in the transition table row
-        for char in SIGMA.iter() {
-            if symbol == char {
-                //This is the char needed to transition to the next state
-                table[*state as usize][i] = state.to_string();
+        if accept.len() == 1 || accept[1] == state.to_string() {
+            let mut i = 0; //index for keepting track of where you are in the transition table row
+            for char in SIGMA.iter() {
+                if symbol == char {
+                    //This is the char needed to transition to the next state
+                    table[*state as usize][i] = state.to_string();
+                }
+                i += 1;   
             }
-            else {
-            i += 1;
+        }
+        else {
+            for st in &*accept {
+                if st == "X" {continue;}
+                let mut i = 0; //index for keepting track of where you are in the transition table row
+                for char in SIGMA.iter() {
+                    if symbol == char {
+                        //This is the char needed to transition to the next state
+                        table[st.parse::<u32>().unwrap() as usize][i] = state.to_string();
+                    }
+                    i += 1;   
+                }
             }
         }
     }
@@ -391,15 +476,15 @@ fn star(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>){
 /// A function to add a 'plussed' input character to the transition table
 /// - Input: Char that is starred, current state as a mut value, and the transition table
 /// - Output: None, the mut parameters are changed as needed
-fn plus(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>) {
-    add(symbol, state, table); // character must be entered at least once
-    star(symbol, state, table); // it can then be treated like a starred character
+fn plus(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>,  accept: &mut Vec<String>) {
+    add(symbol, state, table, accept); // character must be entered at least once
+    star(symbol, state, table, accept); // it can then be treated like a starred character
 }
 
 /// A function to add an or statement to the transition table
 /// - Input: Char that is starred, current state as a mut value, and the transition table
 /// - Output: New index to jump to (the index after the last char of the or statement)
-fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<String>>, special: char) -> (usize, Vec<String>) {
+fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<String>>, special: char,  accept: &mut Vec<String>) -> usize {
     let left_or = regex[index];
     let mut index_jump = 2;
     let mut next_state = *state + 1;
@@ -407,12 +492,13 @@ fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<Stri
     let num = ['0','1','2','3','4','5','6','7','8','9'];
     
     let mut acc_states = Vec::new(); //for when things get complex
+    acc_states.push("X".to_string());
 
     if special == 'S' {
-        (index, acc_states) // an or statement where the left is a symbol*
+        index // an or statement where the left is a symbol*
     }
     else if special == 'P' {
-        (index, acc_states) // an or statement where the left is a symbol+
+        index // an or statement where the left is a symbol+
     }
     else {
 
@@ -420,7 +506,7 @@ fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<Stri
     if (index+2) >= regex.len() || !invalid_next('|', &regex[index+2]){
         //if the next character is invalid throw an error
         writeln!(std::io::stderr(), "Invalid Input").unwrap();
-       std::process::exit(1);
+        std::process::exit(1);
     }
     //Check what is on the other side of the or
     if regex[index+2] == '(' {
@@ -440,7 +526,7 @@ fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<Stri
             else {
                 // This gets complicated here
                 let state_holder = *state; //this will still be an accept state
-                add(&left_or, state, table); //add the first symbol, get back second accept state
+                add(&left_or, state, table, accept); //add the first symbol, get back second accept state
                 next_state = *state + 1;
                 if right_or == '!' {
                     //symbol is \w so any alpha value will do
@@ -478,7 +564,7 @@ fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<Stri
                 let state_holder_2 = *state; //holds second accepting state
                 *state = next_state;
                 table.push(new_table_row());
-                star(&right_or, state, table);
+                star(&right_or, state, table, accept);
                 next_state = *state;
                 acc_states.push(state_holder.to_string());
                 acc_states.push(state_holder_2.to_string());
@@ -497,7 +583,7 @@ fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<Stri
                 // this gets complicated here
                 // This gets complicated here
                 let state_holder = *state; //this will NOT still be an accept state
-                add(&left_or, state, table); //add the first symbol, get back second accept state
+                add(&left_or, state, table, accept); //add the first symbol, get back second accept state
                 next_state = *state + 1;
                 if right_or == '!' {
                     //symbol is \w so any alpha value will do
@@ -536,7 +622,7 @@ fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<Stri
                 let state_holder_2 = *state; //holds second accepting state
                 *state = next_state;
                 table.push(new_table_row());
-                star(&right_or, state, table);
+                star(&right_or, state, table, accept);
                 next_state = *state; //to make double sure
                 acc_states.push(state_holder_2.to_string());
                 acc_states.push(state.to_string());
@@ -592,7 +678,8 @@ fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<Stri
         }
     }
     *state = next_state;
-    (index + index_jump, acc_states)
+    *accept = acc_states;
+    index + index_jump
     }   
 }
 
