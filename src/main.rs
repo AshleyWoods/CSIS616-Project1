@@ -875,22 +875,29 @@ fn check_string(input: &str, table: &Vec<Vec<String>>) -> bool{
 fn print_state_diagram(table: &Vec<Vec<String>>){
     let mut output = File::create("stdout.txt").expect("Unable to create file");
     //opening lines
-    output.write(b"diagraph {\n\n\t node [shape=point]; start;\n").expect("Unable to write to file");
+    output.write(b"diagraph {\n\n\tnode [shape=point]; start;\n").expect("Unable to write to file");
 
     //insert end states for the double circle label
+    output.write(b"\tnode [shape=doublecircle]; ").expect("Unable to write to file");
+    let mut marker = 0;
     for state in &table[table.len()-1] { //loop through the accept state row
         if state == "X" {
             //This is just the marker for the accept state row, ignore
         }
         else {
-            output.write(b"\t ").expect("Unable to write to file");
+            if marker == 0 {
+                marker += 1;
+            }
+            else {
+                output.write(b", ").expect("Unable to write to file");
+            }
             output.write(state.as_bytes()).expect("Unable to write to file");
-            output.write(b" [shape=doublecircle];\n").expect("Unable to write to file");
         }
     }
+    output.write(b";\n").expect("Unable to write to file");
 
     //transition to next section of file
-    output.write(b"\t node [shape=circle];\n\n\t start -> 0;\n").expect("Unable to write to file");
+    output.write(b"\tnode [shape=circle];\n\n\tstart -> 0;\n").expect("Unable to write to file");
 
     //translate state diagram to transitions on a graph
     let mut row_num = 0;
@@ -903,7 +910,7 @@ fn print_state_diagram(table: &Vec<Vec<String>>){
         }
         for transition in row {
             if transition != " " {
-                output.write(b"\t ").expect("Unable to write to file");
+                output.write(b"\t").expect("Unable to write to file");
                 output.write(row_num.to_string().as_bytes()).expect("Unable to write to file");
                 output.write(b" -> ").expect("Unable to write to file");
                 output.write(table[row_num][i].as_bytes()).expect("Unable to write to file");
