@@ -237,18 +237,18 @@ fn parse_regex(reg: Vec<char>) -> Vec<Vec<String>>{
             // paren_index now contains the index of the closing paren and it can be passed to a helper
             // first check for *, +, or | after the parens close
             if paren_index < max_index && reg[paren_index+1] == '*' {
-                //call paren_star(reg, index, paren_index)
+                //call paren_star(reg, index, paren_index) ----------- !!!!!!!!!!!!!
                 index = paren_index + 2; //skip to after star symbol
             }
             else if paren_index < max_index && reg[paren_index+1] == '+' {
-                //call paren_plus(reg, index, paren_index)
+                //call paren_plus(reg, index, paren_index)----------- !!!!!!!!!!!!!
                 index = paren_index + 2; //skip to after plus symbol
             }
             else if paren_index < max_index && reg[paren_index+1] == '|' {
-                //index = paren_or(reg, index, paren_index); //skip to after or statement
+                //index = paren_or(reg, index, paren_index); //skip to after or statement----------- !!!!!!!!!!!!!
             }
             else {
-                //call paren_add(reg, index, paren_index)
+                //call paren_add(reg, index, paren_index)----------- !!!!!!!!!!!!!
                 index = paren_index + 1; //go to symbol after parens close
             }
 
@@ -260,7 +260,9 @@ fn parse_regex(reg: Vec<char>) -> Vec<Vec<String>>{
         }
     }
     //add a final vec holding the accept state
-    accept_states.push(current_state.to_string());
+    if !accept_states.contains(&current_state.to_string()){
+        accept_states.push(current_state.to_string());
+    }
     transition_table.push(accept_states);
     transition_table
 }
@@ -387,6 +389,98 @@ fn add(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>, accept: &mu
     table.push(new_table_row()); //add next row for next state
 }
 
+/// A function route a specific symbol to a specific state in the transition table
+/// - Input: 
+/// - Output: 
+fn add_to(symbol:&char, state: u32, table: &mut Vec<Vec<String>>, accept: &mut Vec<String>, to_state: u32) {
+    let alpha = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'];
+    let num = ['0','1','2','3','4','5','6','7','8','9'];
+    if *symbol == '!' {
+        //symbol is \w so any alpha value will do
+        if accept.len() == 1 || accept[1] == state.to_string() {
+            //There is only one accept state 
+            let mut i = 0; //index for keepting track of where you are in the transition table row
+            for char in SIGMA.iter() {
+                if alpha.contains(char) {
+                    //This is a char needed to transition to the next state
+                    table[state as usize][i] = to_state.to_string();
+                }
+                i += 1;
+            }
+        }
+        else {
+            //There is more than one accept state right now
+            for st in &*accept {
+                if st == "X" { continue;}
+                let mut i = 0;
+                for char in SIGMA.iter() {
+                    if alpha.contains(char) {
+                        //This is a char needed to transition to the next state
+                        table[st.parse::<u32>().unwrap() as usize][i] = to_state.to_string();
+                    }
+                    i += 1;
+                }
+            }
+        }
+    }
+    else if *symbol == '@' {
+        if accept.len() == 1 || accept[1] == state.to_string() {
+            //symbol is \d so any num value will do
+            let mut i = 0; //index for keepting track of where you are in the transition table row
+            for char in SIGMA.iter() {
+                if num.contains(char) {
+                    //This is a char needed to transition to the next state
+                    table[state as usize][i] = to_state.to_string();
+                }
+                i += 1;
+            }
+        }
+        else {
+            //There is more than one accept state right now
+            for st in &*accept {
+                if st == "X" { continue;}
+                let mut i = 0;
+                for char in SIGMA.iter() {
+                    if num.contains(char) {
+                        //This is a char needed to transition to the next state
+                        table[st.parse::<u32>().unwrap() as usize][i] = to_state.to_string();
+                    }
+                    i += 1;
+                }
+            }
+        }
+    }
+    else {
+        //symbol is specific
+        if accept.len() == 1 || accept[1] == state.to_string() {
+            let mut i = 0; //index for keepting track of where you are in the transition table row
+            for char in SIGMA.iter() {
+                if symbol == char {
+                    //This is the char needed to transition to the next state
+                    table[state as usize][i] = to_state.to_string();
+                }
+                i += 1;
+            }
+        }
+        else {
+            for st in &*accept {
+                if st == "X" {continue;}
+                let mut i = 0;
+                for char in SIGMA.iter() {
+                    if symbol == char {
+                        table[st.parse::<u32>().unwrap() as usize][i] = to_state.to_string();
+                    }
+                    i += 1;
+                }
+            }
+        }
+    }
+    let mut holder = Vec::<String>::new();
+    holder.push("X".to_string());
+    *accept = holder; //resets the accept states
+    table.push(new_table_row()); //add next row for next state
+}
+
 /// A function to add a starred input character to the transition table
 /// - Input: Char that is starred, current state as a mut value, and the transition table
 /// - Output: None, the mut parameters are changed as needed
@@ -495,10 +589,10 @@ fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<Stri
     acc_states.push("X".to_string());
 
     if special == 'S' {
-        index // an or statement where the left is a symbol*
+        index // an or statement where the left is a symbol* ----------- !!!!!!!!!!!!!
     }
     else if special == 'P' {
-        index // an or statement where the left is a symbol+
+        index // an or statement where the left is a symbol+ ----------- !!!!!!!!!!!!!
     }
     else {
 
@@ -510,7 +604,7 @@ fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<Stri
     }
     //Check what is on the other side of the or
     if regex[index+2] == '(' {
-        // There is a statement on the other side bounded by parens
+        // There is a statement on the other side bounded by parens----------- !!!!!!!!!!!!!
 
     }
     else{
@@ -521,55 +615,30 @@ fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<Stri
             //left_or | starred right_or, check for another |
             index_jump = 4;
             if (index+4) < regex.len() && regex[index+4] == '|' {
-                //call a helper for stacked_or, really complex
+                //call a helper for stacked_or, really complex----------- !!!!!!!!!!!!!
             }
             else {
                 // This gets complicated here
                 let state_holder = *state; //this will still be an accept state
+                acc_states = accept.clone(); //these will still be accept states
                 add(&left_or, state, table, accept); //add the first symbol, get back second accept state
+                let state_holder_2 = *state;
                 next_state = *state + 1;
-                if right_or == '!' {
-                    //symbol is \w so any alpha value will do
-                    let mut i = 0; //index for keepting track of where you are in the transition table row
-                    for char in SIGMA.iter() {
-                        if alpha.contains(char) {
-                            //This is a char needed to transition to the next state
-                            table[state_holder as usize][i] = next_state.to_string();
-                        }
-                        i += 1;
+                let mut acc_holder = acc_states.clone();
+                add_to(&right_or, state_holder, table, &mut acc_holder, next_state);
+                let mut empty = Vec::<String>::new();
+                empty.push("X".to_string());
+                star(&right_or, &mut next_state, table, &mut empty);
+                if !acc_states.contains(&state_holder.to_string()) {
+                    acc_states.push(state_holder.to_string());
+                }
+                for st in acc_holder {
+                    if !acc_states.contains(&st.to_string()) {
+                        acc_states.push(st.to_string());
                     }
                 }
-                else if right_or == '@' {
-                    //symbol is \d so any num value will do
-                    let mut i = 0; //index for keepting track of where you are in the transition table row
-                    for char in SIGMA.iter() {
-                        if num.contains(char) {
-                            //This is a char needed to transition to the next state
-                            table[state_holder as usize][i] = next_state.to_string();
-                        }
-                        i += 1;
-                    }
-            
-                }
-                else {
-                    let mut i = 0; //index for keepting track of where you are in the transition table row
-                    for char in SIGMA.iter() {
-                        if right_or == *char {
-                            //This is the char needed to transition to the next state
-                            table[state_holder as usize][i] = next_state.to_string();
-                        }
-                        i += 1;
-                    }
-                }
-                let state_holder_2 = *state; //holds second accepting state
-                *state = next_state;
-                table.push(new_table_row());
-                star(&right_or, state, table, accept);
-                next_state = *state;
-                acc_states.push(state_holder.to_string());
                 acc_states.push(state_holder_2.to_string());
-                acc_states.push(state.to_string());
-                //accept states are currently in state_holder, state_holder_2, and state
+                acc_states.push(next_state.to_string());
             }
 
         }
@@ -577,104 +646,37 @@ fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<Stri
             //left_or | plus right_or, check for another |
             index_jump = 4;
             if (index+4) < regex.len() && regex[index+4] == '|' {
-                //call a helper for stacked_or, really complex
+                //call a helper for stacked_or, really complex ----------- !!!!!!!!!!!!!
             }
             else {
-                // this gets complicated here
                 // This gets complicated here
-                let state_holder = *state; //this will NOT still be an accept state
+                let state_holder = *state; //this will not be an accept state
+                acc_states = accept.clone(); //these will not be accept states
                 add(&left_or, state, table, accept); //add the first symbol, get back second accept state
+                let state_holder_2 = *state;
                 next_state = *state + 1;
-                if right_or == '!' {
-                    //symbol is \w so any alpha value will do
-                    let mut i = 0; //index for keepting track of where you are in the transition table row
-                    for char in SIGMA.iter() {
-                        if alpha.contains(char) {
-                            //This is a char needed to transition to the next state
-                            table[state_holder as usize][i] = next_state.to_string();
-                        }
-                        i += 1;
-                    }
-                }
-                else if right_or == '@' {
-                    //symbol is \d so any num value will do
-                    let mut i = 0; //index for keepting track of where you are in the transition table row
-                    for char in SIGMA.iter() {
-                        if num.contains(char) {
-                            //This is a char needed to transition to the next state
-                            table[state_holder as usize][i] = next_state.to_string();
-                        }
-                        i += 1;
-                    }
-            
-                }
-                else {
-                    
-                    let mut i = 0; //index for keepting track of where you are in the transition table row
-                    for char in SIGMA.iter() {
-                        if right_or == *char {
-                            //This is the char needed to transition to the next state
-                            table[state_holder as usize][i] = next_state.to_string();
-                        }
-                        i += 1;
-                    }
-                }
-                let state_holder_2 = *state; //holds second accepting state
-                *state = next_state;
-                table.push(new_table_row());
-                star(&right_or, state, table, accept);
-                next_state = *state; //to make double sure
+                add_to(&right_or, state_holder, table, &mut acc_states, next_state);
+                let mut empty = Vec::<String>::new();
+                empty.push("X".to_string());
+                star(&right_or, &mut next_state, table, &mut empty);
                 acc_states.push(state_holder_2.to_string());
-                acc_states.push(state.to_string());
-                //accept states are currently in state_holder_2, and state
+                acc_states.push(next_state.to_string());
             }
         }
         else if (index+3) < regex.len() && regex[index+3] == '|' {
             //left_or | right_or | another_thing, check for another |
-            // call a helper for stacked_or
+            // call a helper for stacked_or ----------- !!!!!!!!!!!!!
             index_jump = 4;
         }
         else {
             index_jump = 3;
             //simple left_or char | right_or char
-            if left_or == '!' || right_or == '!'{
-                //symbol is \w so any alpha value will do
-                let mut i = 0; //index for keepting track of where you are in the transition table row
-                for char in SIGMA.iter() {
-                    if alpha.contains(char) {
-                        //This is a char needed to transition to the next state
-                        table[*state as usize][i] = next_state.to_string();
-                    }
-                    i += 1;
-                }
-            }
-            if left_or == '@' || right_or == '@'{
-                //symbol is \d so any num value will do
-                let mut i = 0; //index for keepting track of where you are in the transition table row
-                for char in SIGMA.iter() {
-                    if num.contains(char) {
-                        //This is a char needed to transition to the next state
-                        table[*state as usize][i] = next_state.to_string();
-                    }
-                    i += 1;
-                }
-            }
-            if left_or != '!' || left_or != '@' || right_or != '!' || right_or != '@' {
-                //symbol is specific
-                let mut i = 0; //index for keepting track of where you are in the transition table row
-                for char in SIGMA.iter() {
-                    if left_or == *char {
-                        //This is a char needed to transition to the next state
-                        table[*state as usize][i] = next_state.to_string();
-                    }
-                    else if right_or == *char {
-                        //This is a char needed to transition to the next state
-                        table[*state as usize][i] = next_state.to_string();
-                    }
-                    i += 1;
-                }
-            }
-            table.push(new_table_row()); //add next row for next state
+            let mut st_holder = *state;
+            acc_states = accept.clone();
+            add(&left_or, state, table, accept);
+            add(&right_or, &mut st_holder, table, &mut acc_states);
+            table.remove(table.len()-2 as usize); //remove uneeded table row
+            next_state = *state;
         }
     }
     *state = next_state;

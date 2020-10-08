@@ -14,8 +14,9 @@
      - To test: cargo test
 
 ## Concerns and Caveats
+    - It is exceedingly hard to make sure I have all possible input cases covered, I tried.
+    - I am not fully sure if the dot notation for the output is correct
     - Currently has spotty '|' coverage 
         - Cannot take a|b|c stacked '|' statements
         - Cannot handle a + or * before an | (as in: a*|b)
-    - Cannot currently handle all cases for multiple accept states (as in: a|b*c)
     - Currently doesn't support () or {}
