@@ -18,5 +18,5 @@
     - I am not fully sure if the dot notation for the output is correct
     - Currently has spotty '|' coverage 
         - Cannot take a|b|c stacked '|' statements
-        - Cannot handle a + or * before an | (as in: a*|b)
     - Currently doesn't support () or {}
+    - CURRENTLY HAS NO TESTS

@@ -582,17 +582,139 @@ fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<Stri
     let left_or = regex[index];
     let mut index_jump = 2;
     let mut next_state = *state + 1;
-    let alpha = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'];
-    let num = ['0','1','2','3','4','5','6','7','8','9'];
     
     let mut acc_states = Vec::new(); //for when things get complex
     acc_states.push("X".to_string());
 
     if special == 'S' {
-        index // an or statement where the left is a symbol* ----------- !!!!!!!!!!!!!
+        index_jump = 4;
+        // a*|b* is essentially equivalent to a*|b+
+        if (index+index_jump) < regex.len() && regex[index + index_jump] == '*' || regex[index + index_jump] == '+'{
+            //a*|b*
+            index_jump += 1;
+            let right_or = regex[index+3];
+            let state_holder = *state; //this will still be an accept state
+            acc_states = accept.clone(); //these will still be accept states
+            add(&left_or, state, table, accept); //add the first symbol, get back second accept state
+            let mut empty = Vec::<String>::new();
+            empty.push("X".to_string());
+            star(&left_or, state, table, &mut empty);
+            let state_holder_2 = *state;
+            next_state = *state + 1;
+            let mut acc_holder = acc_states.clone();
+            add_to(&right_or, state_holder, table, &mut acc_holder, next_state);
+            star(&right_or, &mut next_state, table, &mut empty);
+            if !acc_states.contains(&state_holder.to_string()) {
+                acc_states.push(state_holder.to_string());
+            }
+            for st in acc_holder {
+                if !acc_states.contains(&st.to_string()) {
+                    acc_states.push(st.to_string());
+                }
+            }
+            acc_states.push(state_holder_2.to_string());
+            acc_states.push(next_state.to_string());
+            *state = next_state;
+            *accept = acc_states;
+            index + index_jump
+        }
+        else {
+            //a*|b
+            let right_or = regex[index+3];
+            let state_holder = *state; //this will still be an accept state
+            acc_states = accept.clone(); //these will still be accept states
+            add(&left_or, state, table, accept); //add the first symbol, get back second accept state
+            let mut empty = Vec::<String>::new();
+            empty.push("X".to_string());
+            star(&left_or, state, table, &mut empty);
+            let state_holder_2 = *state;
+            next_state = *state + 1;
+            let mut acc_holder = acc_states.clone();
+            add_to(&right_or, state_holder, table, &mut acc_holder, next_state);
+            if !acc_states.contains(&state_holder.to_string()) {
+                acc_states.push(state_holder.to_string());
+            }
+            for st in acc_holder {
+                if !acc_states.contains(&st.to_string()) {
+                    acc_states.push(st.to_string());
+                }
+            }
+            acc_states.push(state_holder_2.to_string());
+            acc_states.push(next_state.to_string());
+            *state = next_state;
+            *accept = acc_states;
+            index + index_jump
+        }
     }
     else if special == 'P' {
-        index // an or statement where the left is a symbol+ ----------- !!!!!!!!!!!!!
+        index_jump = 4;
+        if (index+index_jump) < regex.len() && regex[index + index_jump] == '*' {
+            //a+|b*
+            index_jump += 1;
+            let right_or = regex[index+3];
+            let state_holder = *state; //this will be an accept state
+            acc_states = accept.clone(); //these will be accept states
+            add(&left_or, state, table, accept); //add the first symbol, get back second accept state
+            let mut empty = Vec::<String>::new();
+            empty.push("X".to_string());
+            star(&left_or, state, table, &mut empty);
+            let state_holder_2 = *state;
+            next_state = *state + 1;
+            let mut acc_holder = acc_states.clone();
+            add_to(&right_or, state_holder, table, &mut acc_holder, next_state);
+            star(&right_or, &mut next_state, table, &mut empty);
+            if !acc_states.contains(&state_holder.to_string()) {
+                acc_states.push(state_holder.to_string());
+            }
+            for st in acc_holder {
+                if !acc_states.contains(&st.to_string()) {
+                    acc_states.push(st.to_string());
+                }
+            }
+            acc_states.push(state_holder_2.to_string());
+            acc_states.push(next_state.to_string());
+            *state = next_state;
+            *accept = acc_states;
+            index + index_jump
+        }
+        else if (index+index_jump) < regex.len() && regex[index + index_jump] == '+' {
+            //a+|b+
+            index_jump += 1;
+            let right_or = regex[index+3];
+            let state_holder = *state; //this will not be an accept state
+            acc_states = accept.clone(); //these will not be accept states
+            add(&left_or, state, table, accept); //add the first symbol, get back second accept state
+            let mut empty = Vec::<String>::new();
+            empty.push("X".to_string());
+            star(&left_or, state, table, &mut empty);
+            let state_holder_2 = *state;
+            next_state = *state + 1;
+            add_to(&right_or, state_holder, table, &mut acc_states, next_state);
+            star(&right_or, &mut next_state, table, &mut empty);
+            acc_states.push(state_holder_2.to_string());
+            acc_states.push(next_state.to_string());
+            *state = next_state;
+            *accept = acc_states;
+            index + index_jump
+        }
+        else {
+            //a+|b
+            let right_or = regex[index+3];
+            let state_holder = *state; //this will not be an accept state
+            acc_states = accept.clone(); //these will not be accept states
+            add(&left_or, state, table, accept); //add the first symbol, get back second accept state
+            let mut empty = Vec::<String>::new();
+            empty.push("X".to_string());
+            star(&left_or, state, table, &mut empty);
+            let state_holder_2 = *state;
+            next_state = *state + 1;
+            add_to(&right_or, state_holder, table, &mut acc_states, next_state);
+            acc_states.push(state_holder_2.to_string());
+            acc_states.push(next_state.to_string());
+            *state = next_state;
+            *accept = acc_states;
+            index + index_jump
+        }
     }
     else {
 
