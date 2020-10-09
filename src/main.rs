@@ -296,7 +296,7 @@ fn invalid_next(first: char, next: &char) -> bool {
 }
 
 /// A function to add a single input character to the transition table
-/// - Input: A character that must be input to reach a state, the current state as a mut value, and the transition table
+/// - Input: A character that must be input to reach a state, the current state as a mut value, the transition table, and vector of accept states
 /// - Output: None, the mut parameters are changed as needed
 fn add(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>, accept: &mut Vec<String>) {
     let next_state = *state + 1;
@@ -390,8 +390,8 @@ fn add(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>, accept: &mu
 }
 
 /// A function route a specific symbol to a specific state in the transition table
-/// - Input: 
-/// - Output: 
+/// - Input: A character that must be input to reach a state, the current state as a mut value, the transition table, vector of accept states, and a specified next state
+/// - Output: None, the mut parameters are changed as needed
 fn add_to(symbol:&char, state: u32, table: &mut Vec<Vec<String>>, accept: &mut Vec<String>, to_state: u32) {
     let alpha = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'];
     let num = ['0','1','2','3','4','5','6','7','8','9'];
@@ -482,7 +482,7 @@ fn add_to(symbol:&char, state: u32, table: &mut Vec<Vec<String>>, accept: &mut V
 }
 
 /// A function to add a starred input character to the transition table
-/// - Input: Char that is starred, current state as a mut value, and the transition table
+/// - Input: Char that is starred, current state as a mut value, the transition table, and vector of accept states
 /// - Output: None, the mut parameters are changed as needed
 fn star(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>> , accept: &mut Vec<String>){
     let alpha = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'];
@@ -568,7 +568,7 @@ fn star(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>> , accept: &
 }
 
 /// A function to add a 'plussed' input character to the transition table
-/// - Input: Char that is starred, current state as a mut value, and the transition table
+/// - Input: Char that is plussed, current state as a mut value, the transition table, and vector of accept states
 /// - Output: None, the mut parameters are changed as needed
 fn plus(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>,  accept: &mut Vec<String>) {
     add(symbol, state, table, accept); // character must be entered at least once
@@ -576,7 +576,7 @@ fn plus(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>,  accept: &
 }
 
 /// A function to add an or statement to the transition table
-/// - Input: Char that is starred, current state as a mut value, and the transition table
+/// - Input: Starting index, regex, current state as a mut value, the transition table, character for marking specific symbols before the |, and vector of accept states
 /// - Output: New index to jump to (the index after the last char of the or statement)
 fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<String>>, special: char,  accept: &mut Vec<String>) -> usize {
     let left_or = regex[index];
@@ -586,10 +586,14 @@ fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<Stri
     let mut acc_states = Vec::new(); //for when things get complex
     acc_states.push("X".to_string());
 
-    if special == 'S' {
+    if index + 3 < regex.len() && regex[index + 3] == '|' || index + 4 < regex.len() && regex[index + 4] == '|' || index + 5 < regex.len() && regex[index + 5] == '|' {
+        //In this situation, there is a 'stacked' or that does not include a parentheses
+        stacked_or(index, regex, state, table, accept)
+    }
+    else if special == 'S' {
         index_jump = 4;
         // a*|b* is essentially equivalent to a*|b+
-        if (index+index_jump) < regex.len() && regex[index + index_jump] == '*' || regex[index + index_jump] == '+'{
+        if (index+index_jump) < regex.len() && regex[index + index_jump] == '*' || (index+index_jump) < regex.len() && regex[index + index_jump] == '+'{
             //a*|b*
             index_jump += 1;
             let right_or = regex[index+3];
@@ -786,9 +790,8 @@ fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<Stri
             }
         }
         else if (index+3) < regex.len() && regex[index+3] == '|' {
-            //left_or | right_or | another_thing, check for another |
-            // call a helper for stacked_or ----------- !!!!!!!!!!!!!
-            index_jump = 4;
+            //left_or | right_or | another_thing
+            index_jump = stacked_or(index, regex, state, table, accept);
         }
         else {
             index_jump = 3;
@@ -805,6 +808,78 @@ fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<Stri
     *accept = acc_states;
     index + index_jump
     }   
+}
+
+/// A function to add an or statement to the transition table when there is more than one '|' involved
+/// For example: a|b|c
+/// - Input: Starting index, regex, current state as a mut value, the transition table, character for marking specific symbols before the |, and vector of accept states
+/// - Output: New index to jump to (the index after the last char of the or statement) 
+fn stacked_or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<String>>,  accept: &mut Vec<String>) -> usize{
+    //CODE FOR ONLY A|B|C|D|... ----------- !!!!!!!!!!!!!
+    //Set up working vars
+    let mut index_jump = 0;
+    let left_or = regex[index + index_jump];
+    let mut right_or;
+    let mut cont = true;
+    let st_holder = *state;
+    let acc_states = accept.clone();
+    
+    if regex[index + 1] == '*' {
+        //first element is starred
+
+    }
+    else if regex[index + 1] == '+' {
+        //first element is plussed
+
+    }
+    else {
+        //first element is only added
+        add(&left_or, state, table, accept);
+    }
+
+    while cont {
+        if index + index_jump + 1 < regex.len() && regex[index + index_jump + 1]  == '|' {
+            if regex[index + 1] == '*' {
+                // element is starred
+        
+            }
+            else if regex[index + 1] == '+' {
+                // element is plussed
+                
+            }
+            else {
+                // element is only added
+                index_jump += 2;
+                *accept = acc_states.clone();
+                *state = st_holder;
+                right_or = regex[index + index_jump];
+                add(&right_or, state, table, accept);
+                table.remove(table.len()-1 as usize); //remove uneeded table row
+            }
+
+        } else {cont = false;}
+    }
+
+    if regex[index + 1] == '*' {
+        //final element is starred
+
+    }
+    else if regex[index + 1] == '+' {
+        //final element is plussed
+
+    }
+    else {
+        //final element is only added
+        *accept = acc_states.clone();
+        *state = st_holder;
+        right_or = regex[index + index_jump];
+        add(&right_or, state, table, accept);
+        table.remove(table.len()-1 as usize); //remove uneeded table row
+    }
+
+    
+    *accept = acc_states;
+    index + index_jump + 1
 }
 
 /// For creating a blank row to add to the transition table where all elements are defined
