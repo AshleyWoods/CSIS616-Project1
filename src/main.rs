@@ -722,92 +722,93 @@ fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<Stri
     }
     else {
 
-    //check that there is a right side of the or, and that it has valid input
-    if (index+2) >= regex.len() || !invalid_next('|', &regex[index+2]){
-        //if the next character is invalid throw an error
-        writeln!(std::io::stderr(), "Invalid Input").unwrap();
-        std::process::exit(1);
-    }
-    //Check what is on the other side of the or
-    if regex[index+2] == '(' {
-        // There is a statement on the other side bounded by parens----------- !!!!!!!!!!!!!
+        //check that there is a right side of the or, and that it has valid input
+        if (index+2) >= regex.len() || !invalid_next('|', &regex[index+2]){
+            //if the next character is invalid throw an error
+            writeln!(std::io::stderr(), "Invalid Input").unwrap();
+            std::process::exit(1);
+        }
+        //Check what is on the other side of the or
+        if regex[index+2] == '(' {
+            // There is a statement on the other side bounded by parens----------- !!!!!!!!!!!!!
 
-    }
-    else{
-        let right_or = regex[index+2];
-        // There is not a parenthetical argument on the other side
-        // Check if the next character has a *, +, or | operation on it
-        if (index+3) < regex.len() && regex[index+3] == '*' {
-            //left_or | starred right_or, check for another |
-            index_jump = 4;
-            if (index+4) < regex.len() && regex[index+4] == '|' {
-                //call a helper for stacked_or, really complex----------- !!!!!!!!!!!!!
-            }
-            else {
-                // This gets complicated here
-                let state_holder = *state; //this will still be an accept state
-                acc_states = accept.clone(); //these will still be accept states
-                add(&left_or, state, table, accept); //add the first symbol, get back second accept state
-                let state_holder_2 = *state;
-                next_state = *state + 1;
-                let mut acc_holder = acc_states.clone();
-                add_to(&right_or, state_holder, table, &mut acc_holder, next_state);
-                let mut empty = Vec::<String>::new();
-                empty.push("X".to_string());
-                star(&right_or, &mut next_state, table, &mut empty);
-                if !acc_states.contains(&state_holder.to_string()) {
-                    acc_states.push(state_holder.to_string());
+        }
+        else{
+            let right_or = regex[index+2];
+            // There is not a parenthetical argument on the other side
+            // Check if the next character has a *, +, or | operation on it
+            if (index+3) < regex.len() && regex[index+3] == '*' {
+                //left_or | starred right_or, check for another |
+                index_jump = 4;
+                if (index+4) < regex.len() && regex[index+4] == '|' {
+                    //call a helper for stacked_or, really complex----------- !!!!!!!!!!!!!
                 }
-                for st in acc_holder {
-                    if !acc_states.contains(&st.to_string()) {
-                        acc_states.push(st.to_string());
+                else {
+                    // This gets complicated here
+                    let state_holder = *state; //this will still be an accept state
+                    acc_states = accept.clone(); //these will still be accept states
+                    add(&left_or, state, table, accept); //add the first symbol, get back second accept state
+                    let state_holder_2 = *state;
+                    next_state = *state + 1;
+                    let mut acc_holder = acc_states.clone();
+                    add_to(&right_or, state_holder, table, &mut acc_holder, next_state);
+                    let mut empty = Vec::<String>::new();
+                    empty.push("X".to_string());
+                    star(&right_or, &mut next_state, table, &mut empty);
+                    if !acc_states.contains(&state_holder.to_string()) {
+                        acc_states.push(state_holder.to_string());
                     }
+                    for st in acc_holder {
+                        if !acc_states.contains(&st.to_string()) {
+                            acc_states.push(st.to_string());
+                        }
+                    }
+                    acc_states.push(state_holder_2.to_string());
+                    acc_states.push(next_state.to_string());
                 }
-                acc_states.push(state_holder_2.to_string());
-                acc_states.push(next_state.to_string());
-            }
 
-        }
-        else if (index+3) < regex.len() && regex[index+3] == '+' {
-            //left_or | plus right_or, check for another |
-            index_jump = 4;
-            if (index+4) < regex.len() && regex[index+4] == '|' {
-                //call a helper for stacked_or, really complex ----------- !!!!!!!!!!!!!
+            }
+            else if (index+3) < regex.len() && regex[index+3] == '+' {
+                //left_or | plus right_or, check for another |
+                index_jump = 4;
+                if (index+4) < regex.len() && regex[index+4] == '|' {
+                    //call a helper for stacked_or, really complex ----------- !!!!!!!!!!!!!
+                }
+                else {
+                    // This gets complicated here
+                    let state_holder = *state; //this will not be an accept state
+                    acc_states = accept.clone(); //these will not be accept states
+                    add(&left_or, state, table, accept); //add the first symbol, get back second accept state
+                    let state_holder_2 = *state;
+                    next_state = *state + 1;
+                    add_to(&right_or, state_holder, table, &mut acc_states, next_state);
+                    let mut empty = Vec::<String>::new();
+                    empty.push("X".to_string());
+                    star(&right_or, &mut next_state, table, &mut empty);
+                    acc_states.push(state_holder_2.to_string());
+                    acc_states.push(next_state.to_string());
+                }
+            }
+            else if (index+3) < regex.len() && regex[index+3] == '|' {
+                //left_or | right_or | another_thing
+                index_jump = stacked_or(index, regex, state, table, accept);
             }
             else {
-                // This gets complicated here
-                let state_holder = *state; //this will not be an accept state
-                acc_states = accept.clone(); //these will not be accept states
-                add(&left_or, state, table, accept); //add the first symbol, get back second accept state
-                let state_holder_2 = *state;
-                next_state = *state + 1;
-                add_to(&right_or, state_holder, table, &mut acc_states, next_state);
-                let mut empty = Vec::<String>::new();
-                empty.push("X".to_string());
-                star(&right_or, &mut next_state, table, &mut empty);
-                acc_states.push(state_holder_2.to_string());
-                acc_states.push(next_state.to_string());
+                index_jump = 3;
+                //simple left_or char | right_or char
+                let mut st_holder = *state;
+                acc_states = accept.clone();
+                add(&left_or, state, table, accept);
+                add(&right_or, &mut st_holder, table, &mut acc_states);
+                table.remove(table.len()-2 as usize); //remove uneeded table row
+                next_state = *state;
             }
         }
-        else if (index+3) < regex.len() && regex[index+3] == '|' {
-            //left_or | right_or | another_thing
-            index_jump = stacked_or(index, regex, state, table, accept);
-        }
-        else {
-            index_jump = 3;
-            //simple left_or char | right_or char
-            let mut st_holder = *state;
-            acc_states = accept.clone();
-            add(&left_or, state, table, accept);
-            add(&right_or, &mut st_holder, table, &mut acc_states);
-            table.remove(table.len()-2 as usize); //remove uneeded table row
-            next_state = *state;
-        }
+        *state = next_state;
+        *accept = acc_states;
+        index + index_jump
     }
-    *state = next_state;
-    *accept = acc_states;
-    index + index_jump
-    }   
+       
 }
 
 /// A function to add an or statement to the transition table when there is more than one '|' involved
@@ -822,51 +823,66 @@ fn stacked_or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<
     let mut right_or;
     let mut cont = true;
     let st_holder = *state;
-    let acc_states = accept.clone();
-    
+    let mut acc_states = accept.clone();
+    let mut acc_holder = Vec::<String>::new();
+    let mut empty = Vec::<String>::new();
+    empty.push("X".to_string());
+    acc_holder.push("X".to_string());
     if regex[index + 1] == '*' {
         //first element is starred
-
+        //st_holder is still an accept state
+        acc_holder.push(st_holder.to_string());
+        add(&left_or, state, table, accept);
+        star(&left_or, state, table, &mut empty);
+        index_jump += 3;
     }
     else if regex[index + 1] == '+' {
         //first element is plussed
-
+        //st_holder is not an accept state
+        add(&left_or, state, table, accept);
+        star(&left_or, state, table, &mut empty);
+        index_jump += 3;
     }
     else {
         //first element is only added
+        //st_holder is not an accept state
         add(&left_or, state, table, accept);
+        index_jump += 2;
     }
-
-    while cont {
+    while cont { //Someone's getting caught in an infinite loop here
         if index + index_jump + 1 < regex.len() && regex[index + index_jump + 1]  == '|' {
-            if regex[index + 1] == '*' {
+            if regex[index + index_jump + 1] == '*' {
                 // element is starred
-        
+                *accept = acc_states.clone();
+                *state = st_holder;
             }
-            else if regex[index + 1] == '+' {
+            else if regex[index + index_jump + 1] == '+' {
                 // element is plussed
-                
+                *accept = acc_states.clone();
+                *state = st_holder;
             }
             else {
                 // element is only added
-                index_jump += 2;
                 *accept = acc_states.clone();
                 *state = st_holder;
                 right_or = regex[index + index_jump];
                 add(&right_or, state, table, accept);
                 table.remove(table.len()-1 as usize); //remove uneeded table row
+                index_jump += 2;
             }
 
         } else {cont = false;}
     }
 
-    if regex[index + 1] == '*' {
+    if index + index_jump + 1 < regex.len() && regex[index + index_jump + 1] == '*' {
         //final element is starred
-
+        *accept = acc_states.clone();
+        *state = st_holder;
     }
-    else if regex[index + 1] == '+' {
+    else if index + index_jump + 1 < regex.len() && regex[index + index_jump + 1] == '+' {
         //final element is plussed
-
+        *accept = acc_states.clone();
+        *state = st_holder;
     }
     else {
         //final element is only added
@@ -875,11 +891,17 @@ fn stacked_or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<
         right_or = regex[index + index_jump];
         add(&right_or, state, table, accept);
         table.remove(table.len()-1 as usize); //remove uneeded table row
+        index_jump += 1;
     }
-
+    
+    for st in acc_holder {
+        if !acc_states.contains(&st.to_string()) {
+            acc_states.push(st.to_string());
+        }
+    }
     
     *accept = acc_states;
-    index + index_jump + 1
+    index + index_jump
 }
 
 /// For creating a blank row to add to the transition table where all elements are defined
