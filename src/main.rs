@@ -816,7 +816,6 @@ fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<Stri
 /// - Input: Starting index, regex, current state as a mut value, the transition table, character for marking specific symbols before the |, and vector of accept states
 /// - Output: New index to jump to (the index after the last char of the or statement) 
 fn stacked_or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<String>>,  accept: &mut Vec<String>) -> usize{
-    //CODE FOR ONLY A|B|C|D|... ----------- !!!!!!!!!!!!!
     //Set up working vars
     let mut index_jump = 0;
     let left_or = regex[index + index_jump];
@@ -828,6 +827,17 @@ fn stacked_or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<
     let mut empty = Vec::<String>::new();
     empty.push("X".to_string());
     acc_holder.push("X".to_string());
+    let mut next_state = *state;
+    let mut use_next_state = false;
+
+    //check that there is a right side of the or, and that it has valid input
+    if !invalid_next('|', &regex[index]){
+        //if the next character is invalid throw an error
+        writeln!(std::io::stderr(), "Invalid Input").unwrap();
+        std::process::exit(1);
+    }
+
+    //First statement in the or
     if regex[index + 1] == '*' {
         //first element is starred
         //st_holder is still an accept state
@@ -835,6 +845,9 @@ fn stacked_or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<
         add(&left_or, state, table, accept);
         star(&left_or, state, table, &mut empty);
         index_jump += 3;
+        acc_holder.push(state.to_string());
+        next_state = *state + 1;
+        use_next_state = true;
     }
     else if regex[index + 1] == '+' {
         //first element is plussed
@@ -842,6 +855,9 @@ fn stacked_or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<
         add(&left_or, state, table, accept);
         star(&left_or, state, table, &mut empty);
         index_jump += 3;
+        acc_holder.push(state.to_string());
+        next_state = *state + 1;
+        use_next_state = true;
     }
     else {
         //first element is only added
@@ -849,51 +865,160 @@ fn stacked_or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<
         add(&left_or, state, table, accept);
         index_jump += 2;
     }
-    while cont { //Someone's getting caught in an infinite loop here
-        if index + index_jump + 1 < regex.len() && regex[index + index_jump + 1]  == '|' {
+
+    //All the middle statemets in the or
+    while cont {
+        //check that there is a right side of the or, and that it has valid input
+        if (index+index_jump) >= regex.len() || !invalid_next('|', &regex[index+index_jump]){
+            //if the next character is invalid throw an error
+            writeln!(std::io::stderr(), "Invalid Input").unwrap();
+            std::process::exit(1);
+        }
+
+        if index + index_jump + 1 < regex.len() && regex[index + index_jump + 1]  == '|' || index + index_jump + 2 < regex.len() && regex[index + index_jump + 2]  == '|' {
             if regex[index + index_jump + 1] == '*' {
                 // element is starred
                 *accept = acc_states.clone();
-                *state = st_holder;
+                right_or = regex[index + index_jump];
+                acc_holder.push(state.to_string());
+                if use_next_state {
+                    *state = st_holder;
+                    acc_holder.push(state.to_string());
+                    add_to(&right_or, *state, table, accept, next_state);
+                    *state = next_state;
+                    star(&right_or, state, table, &mut empty);
+                }
+                else {
+                    next_state = *state + 1;
+                    *state = st_holder;
+                    acc_holder.push(state.to_string());
+                    add_to(&right_or, *state, table, accept, next_state);
+                    *state = next_state;
+                    star(&right_or, state, table, &mut empty);
+                }
+                acc_holder.push(state.to_string());
+                next_state = *state + 1;
+                use_next_state = true;
+                index_jump += 3;
             }
             else if regex[index + index_jump + 1] == '+' {
                 // element is plussed
                 *accept = acc_states.clone();
-                *state = st_holder;
+                acc_holder.push(state.to_string());
+                right_or = regex[index + index_jump];
+                if use_next_state {
+                    *state = st_holder;
+                    add_to(&right_or, *state, table, accept, next_state);
+                    *state = next_state;
+                    star(&right_or, state, table, &mut empty);
+                }
+                else {
+                    next_state = *state + 1;
+                    *state = st_holder;
+                    add_to(&right_or, *state, table, accept, next_state);
+                    *state = next_state;
+                    star(&right_or, state, table, &mut empty);
+                }
+                acc_holder.push(state.to_string());
+                next_state = *state + 1;
+                use_next_state = true;
+                index_jump += 3;
             }
             else {
                 // element is only added
                 *accept = acc_states.clone();
                 *state = st_holder;
                 right_or = regex[index + index_jump];
-                add(&right_or, state, table, accept);
-                table.remove(table.len()-1 as usize); //remove uneeded table row
+                if use_next_state {
+                    add_to(&right_or, *state, table, accept, next_state);
+                    acc_holder.push(next_state.to_string());
+                    next_state += 1;
+                }
+                else {
+                    add(&right_or, state, table, accept);
+                    table.remove(table.len()-1 as usize); //remove uneeded table row
+                }
                 index_jump += 2;
             }
 
         } else {cont = false;}
     }
 
+    //check that there is a right side of the or, and that it has valid input
+    if (index+index_jump) >= regex.len() || !invalid_next('|', &regex[index+index_jump]){
+        //if the next character is invalid throw an error
+        writeln!(std::io::stderr(), "Invalid Input").unwrap();
+        std::process::exit(1);
+    }
+
+    //Final statement in the or
     if index + index_jump + 1 < regex.len() && regex[index + index_jump + 1] == '*' {
         //final element is starred
         *accept = acc_states.clone();
-        *state = st_holder;
+        right_or = regex[index + index_jump];
+        acc_holder.push(state.to_string());
+        if use_next_state {
+            *state = st_holder;
+            acc_holder.push(state.to_string());
+            add_to(&right_or, *state, table, accept, next_state);
+            *state = next_state;
+            star(&right_or, state, table, &mut empty);
+            *state = next_state;
+        }
+        else {
+            next_state = *state + 1;
+            *state = st_holder;
+            acc_holder.push(state.to_string());
+            add_to(&right_or, *state, table, accept, next_state);
+            *state = next_state;
+            star(&right_or, state, table, &mut empty);
+            *state = next_state;
+        }
+        acc_holder.push(state.to_string());
+        index_jump += 3;
     }
     else if index + index_jump + 1 < regex.len() && regex[index + index_jump + 1] == '+' {
         //final element is plussed
         *accept = acc_states.clone();
-        *state = st_holder;
+        acc_holder.push(state.to_string());
+        right_or = regex[index + index_jump];
+        if use_next_state {
+            *state = st_holder;
+            add_to(&right_or, *state, table, accept, next_state);
+            *state = next_state;
+            star(&right_or, state, table, &mut empty);
+            *state = next_state;
+        }
+        else {
+            next_state = *state + 1;
+            *state = st_holder;
+            add_to(&right_or, *state, table, accept, next_state);
+            *state = next_state;
+            star(&right_or, state, table, &mut empty);
+            *state = next_state;
+        }
+        acc_holder.push(state.to_string());
+        index_jump += 3;
     }
     else {
         //final element is only added
         *accept = acc_states.clone();
         *state = st_holder;
         right_or = regex[index + index_jump];
-        add(&right_or, state, table, accept);
-        table.remove(table.len()-1 as usize); //remove uneeded table row
+        if use_next_state {
+            add_to(&right_or, *state, table, accept, next_state);
+            acc_holder.push(next_state.to_string());
+            *state = next_state;
+        }
+        else {
+            add(&right_or, state, table, accept);
+            table.remove(table.len()-1 as usize); //remove uneeded table row
+        }
         index_jump += 1;
     }
     
+    //Filter out repeat states
+    acc_states = Vec::<String>::new();
     for st in acc_holder {
         if !acc_states.contains(&st.to_string()) {
             acc_states.push(st.to_string());

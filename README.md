@@ -16,7 +16,5 @@
 ## Concerns and Caveats
     - It is exceedingly hard to make sure I have all possible input cases covered, I tried.
     - I am not fully sure if the dot notation for the output is correct
-    - Currently has spotty '|' coverage 
-        - Cannot take a|b|c stacked '|' statements
     - Currently doesn't support () or {}
     - CURRENTLY HAS NO TESTS
