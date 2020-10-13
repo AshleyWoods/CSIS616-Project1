@@ -228,12 +228,15 @@ fn parse_regex(reg: Vec<char>) -> Vec<Vec<String>>{
                 }
                 else if reg[paren_index] == ')' && paren_layer == 0 {
                     cont = false; //found the closing paren
+                    paren_index -= 1; //to account for the addition at the end of this loop
                 }
                 else if reg[paren_index] == ')' && paren_layer > 0 {
                     paren_layer -= 1; //wrong closing paren, exit nested paren
                 }
                 paren_index += 1; //check next index
             }
+            index += 1; //set it to the first char inside the paren statement
+
             // paren_index now contains the index of the closing paren and it can be passed to a helper
             // first check for *, +, or | after the parens close
             if paren_index < max_index && reg[paren_index+1] == '*' {
@@ -248,7 +251,7 @@ fn parse_regex(reg: Vec<char>) -> Vec<Vec<String>>{
                 //index = paren_or(reg, index, paren_index); //skip to after or statement----------- !!!!!!!!!!!!!
             }
             else {
-                //call paren_add(reg, index, paren_index)----------- !!!!!!!!!!!!!
+                paren_add(index, paren_index, &reg, &mut current_state, &mut transition_table, &mut accept_states); 
                 index = paren_index + 1; //go to symbol after parens close
             }
 
@@ -1027,6 +1030,43 @@ fn stacked_or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<
     
     *accept = acc_states;
     index + index_jump
+}
+
+/// A function to add a plain parenthetical statement to the transition table (the parens can be seen as useless in this situation ex: a(bc)d )
+/// - Input: Starting index, ending index of the paren statement, regex, current state as a mut, mut transition table, and the accept states as a mut
+/// - Output: None, the mut values are changed as needed
+fn paren_add(index: usize, p_index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<String>>, accept: &mut Vec<String>){
+    let mut i = index;
+    let mut special = 'N';
+
+    while i < p_index {
+        if i + 3 < p_index && regex[i + 3] == '|' || i + 4 < p_index && regex[i + 4] == '|' || i + 5 < p_index && regex[i + 5] == '|' {
+            //statement is x|y|z or x*|y|z or x*|y*|z etc.
+            i += stacked_or(i, regex, state, table, accept);
+        }
+        else if i + 1 < p_index && regex[i + 1] == '|' || i + 2 < p_index && regex[i + 2] == '|' {
+            //statement is a single or z|a, z*|a, etc.
+            if regex[i+1] == '*' {special = 'S';}
+            else if regex[i+1] == '+' {special = 'P';}
+            i += or(i, regex, state, table, special, accept);
+        }
+        else if regex[i + 1] == '*' {
+            //statement is starred
+            star(&regex[i], state, table, accept);
+            i += 2;
+        }
+        else if regex[i + 1] == '+' {
+            //statement is plussed
+            plus(&regex[i], state, table, accept);
+            i += 2;
+        }
+        else {
+            //statement is plain
+            add(&regex[i], state, table, accept);
+            i += 1;
+        }
+    }
+
 }
 
 /// For creating a blank row to add to the transition table where all elements are defined

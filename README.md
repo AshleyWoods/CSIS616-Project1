@@ -16,5 +16,5 @@
 ## Concerns and Caveats
     - It is exceedingly hard to make sure I have all possible input cases covered, I tried.
     - I am not fully sure if the dot notation for the output is correct
-    - Currently doesn't support () or {}
+    - Very minor support () or {} in specific cases
     - CURRENTLY HAS NO TESTS
