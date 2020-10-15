@@ -240,11 +240,11 @@ fn parse_regex(reg: Vec<char>) -> Vec<Vec<String>>{
             // paren_index now contains the index of the closing paren and it can be passed to a helper
             // first check for *, +, or | after the parens close
             if paren_index < max_index && reg[paren_index+1] == '*' {
-                paren_star(index, paren_index, &reg, &mut current_state, &mut transition_table, &mut accept_states);
+                paren_star_plus(index, paren_index, &reg, &mut current_state, &mut transition_table, &mut accept_states, "Star");
                 index = paren_index + 2; //skip to after star symbol
             }
             else if paren_index < max_index && reg[paren_index+1] == '+' {
-                //call paren_plus(reg, index, paren_index)----------- !!!!!!!!!!!!!
+                paren_star_plus(index, paren_index, &reg, &mut current_state, &mut transition_table, &mut accept_states, "Plus");
                 index = paren_index + 2; //skip to after plus symbol
             }
             else if paren_index < max_index && reg[paren_index+1] == '|' {
@@ -1072,13 +1072,18 @@ fn paren_add(index: usize, p_index: usize, regex: &Vec<char>, state: &mut u32, t
 /// A function to add a starred parenthetical statement to the transition table
 /// - Input: Starting index, ending index of the paren statement, regex, current state as a mut, mut transition table, and the accept states as a mut
 /// - Output: None, the mut values are changed as needed
-fn paren_star(index: usize, p_index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<String>>, accept: &mut Vec<String>){
+fn paren_star_plus(index: usize, p_index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<String>>, accept: &mut Vec<String>, special: &str){
     let mut i = index;
     let mut _special = 'N'; //get to this later
     let state_holder = *state;
     let mut acc_holder = accept.clone();
+    if special != "Plus" {
+        //The origional state is still an accept state in this case
+        acc_holder.push(state_holder.to_string());
+    }
     let mut contains_or = false;
     let mut cont = true;
+    let mut add_final = true; //for adding the final element outside of special circumstances
 
     for num in i..p_index {
         if regex[num] == '|' {
@@ -1089,11 +1094,73 @@ fn paren_star(index: usize, p_index: usize, regex: &Vec<char>, state: &mut u32, 
     if contains_or {
         //statement contains an or ----------- !!!!!!!!!!!!!
     }
+    else if p_index - i <= 1{
+        star(&regex[i], state, table, accept);
+    }
     else {
-        if regex[i + 1] == '*' {//first statement is starred ----------- !!!!!!!!!!!!!
-            star(&regex[i], state, table, accept);
+        if regex[i + 1] == '*' {//first statement is starred (some probs w/ ()+) ----------- !!!!!!!!!!!!!
+            plus(&regex[i], state, table, accept);
             i += 2;
-            cont = i<p_index;
+            if p_index - i <= 2 && regex[p_index - 1] == '*' {
+                cont = false;
+                add_final = false;
+                acc_holder.push(state.to_string());
+                add_to(&regex[i], *state, table, accept, state_holder);
+                table.remove(table.len()-1 as usize); //remove uneeded table row
+                star(&regex[i], state, table, accept);
+                //*state = state_holder;
+            }
+            else if p_index - i <= 2 && regex[p_index-1] == '+' || p_index - i <= 1 {
+                cont = false;
+                add_final = false;
+                add_to(&regex[i], *state, table, accept, state_holder);
+                table.remove(table.len()-1 as usize); //remove uneeded table row
+                star(&regex[i], state, table, accept);
+                //*state = state_holder;
+            }
+            else {
+                if regex[i + 1] == '*' {
+                    //statement is starred
+                    star(&regex[i], state, table, accept);
+                    i += 2;
+                    if p_index - i <= 2 && (regex[p_index - 1] == '*' || regex[p_index-1] == '+') {
+                        cont = false;
+                    }
+                    else if p_index - i <= 1{
+                        cont = false;
+                        acc_holder.push(state.to_string());
+                    }
+                    else {cont = i<p_index;}
+                }
+                else if regex[i + 1] == '+' {
+                    //statement is plussed
+                    plus(&regex[i], state, table, accept);
+                    add_to(&regex[i], state_holder, table, accept, *state);
+                    table.remove(table.len()-1 as usize); //remove uneeded table row
+                    i += 2;
+                    if p_index - i <= 2 && (regex[p_index - 1] == '*' || regex[p_index-1] == '+') {
+                        cont = false;
+                    }
+                    else if p_index - i <= 1{
+                        cont = false;
+                    }
+                    else {cont = i<p_index;}
+                }
+                else {
+                    //statement is plain
+                    add(&regex[i], state, table, accept);
+                    add_to(&regex[i], state_holder, table, accept, *state);
+                    table.remove(table.len()-1 as usize); //remove uneeded table row
+                    i += 1;
+                    if p_index - i <= 2 && (regex[p_index - 1] == '*' || regex[p_index-1] == '+') {
+                        cont = false;
+                    }
+                    else if p_index - i <= 1{
+                        cont = false;
+                    }
+                    else {cont = i<p_index;}
+                }
+            }
         }
 
         //Loop through central things
@@ -1105,7 +1172,7 @@ fn paren_star(index: usize, p_index: usize, regex: &Vec<char>, state: &mut u32, 
                 if p_index - i <= 2 && (regex[p_index - 1] == '*' || regex[p_index-1] == '+') {
                     cont = false;
                 }
-                else if p_index - i == 1{
+                else if p_index - i <= 1{
                     cont = false;
                 }
                 else {cont = i<p_index;}
@@ -1117,7 +1184,7 @@ fn paren_star(index: usize, p_index: usize, regex: &Vec<char>, state: &mut u32, 
                 if p_index - i <= 2 && (regex[p_index - 1] == '*' || regex[p_index-1] == '+') {
                     cont = false;
                 }
-                else if p_index - i == 1{
+                else if p_index - i <= 1{
                     cont = false;
                 }
                 else {cont = i<p_index;}
@@ -1129,48 +1196,58 @@ fn paren_star(index: usize, p_index: usize, regex: &Vec<char>, state: &mut u32, 
                 if p_index - i <= 2 && (regex[p_index - 1] == '*' || regex[p_index-1] == '+') {
                     cont = false;
                 }
-                else if p_index - i == 1{
+                else if p_index - i <= 1{
                     cont = false;
                 }
                 else {cont = i<p_index;}
             }
         }
-
-        if regex[p_index - 1] == '*' {
-            // Last symbol is starred
-            star(&regex[i], state, table, accept);
-            acc_holder.push(state.to_string());
-            if regex[index+1] == '*' {
-                //----------- !!!!!!!!!!!!!
+        
+        //add final element, if it wasn't added already
+        if add_final {
+            if regex[p_index - 1] == '*' {
+                // Last symbol is starred
+                star(&regex[i], state, table, accept);
+                acc_holder.push(state.to_string());
+                if regex[index+1] == '*' {
+                    add_to(&regex[index], *state, table, accept, state_holder + 1);
+                    add_to(&regex[index+2], *state, table, accept, state_holder+2);
+                    //*state = state_holder;
+                }
+                else{
+                    add_to(&regex[index], *state, table, accept, state_holder + 1);
+                    //table.remove(table.len()-1 as usize); //remove uneeded table row
+                    //*state = state_holder;
+                }
+                
             }
-            else{
+            else if regex[p_index-1] == '+' {
+                // Last symbol is plussed 
+                plus(&regex[i], state, table, accept);
+                acc_holder.push(state.to_string());
                 add_to(&regex[index], *state, table, accept, state_holder + 1);
-                //table.remove(table.len()-1 as usize); //remove uneeded table row
-                *state = state_holder;
-                for st in acc_holder {
-                    if !accept.contains(&st.to_string()) {
-                        accept.push(st.to_string());
-                    }
-                }
+                table.remove(table.len()-1 as usize); //remove uneeded table row
+                //*state = state_holder;
             }
-            
-        }
-        else if regex[p_index-1] == '+' {
-            // Last symbol is plussed ----------- !!!!!!!!!!!!!
-
-        }
-        else {
-            //last symbol is plain
-            add_to(&regex[i], *state, table, accept, state_holder);
-            table.remove(table.len()-1 as usize); //remove uneeded table row
-            *state = state_holder;
-            for st in acc_holder {
-                if !accept.contains(&st.to_string()) {
-                    accept.push(st.to_string());
+            else if i < p_index{
+                //last symbol is plain
+                if special == "Plus" {
+                    add(&regex[i], state, table, accept);
+                    add_to(&regex[index], *state, table, accept, state_holder + 1);
+                    table.remove(table.len()-1 as usize); //remove uneeded table row
                 }
+                else {
+                    add_to(&regex[i], *state, table, accept, state_holder);
+                    table.remove(table.len()-1 as usize); //remove uneeded table row
+                }
+                //*state = state_holder;
             }
         }
-
+        for st in acc_holder {
+            if !accept.contains(&st.to_string()) {
+                accept.push(st.to_string());
+            }
+        }
     }
 }
 
