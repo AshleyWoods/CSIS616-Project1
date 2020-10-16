@@ -240,15 +240,25 @@ fn parse_regex(reg: Vec<char>) -> Vec<Vec<String>>{
             // paren_index now contains the index of the closing paren and it can be passed to a helper
             // first check for *, +, or | after the parens close
             if paren_index < max_index && reg[paren_index+1] == '*' {
-                paren_star_plus(index, paren_index, &reg, &mut current_state, &mut transition_table, &mut accept_states, "Star");
-                index = paren_index + 2; //skip to after star symbol
+                if paren_index + 1 < max_index && reg[paren_index+2] == '|'{
+                    index = paren_or(index, &reg, &mut current_state, &mut transition_table, &mut accept_states);
+                }
+                else {
+                    paren_star_plus(index, paren_index, &reg, &mut current_state, &mut transition_table, &mut accept_states, "Star");
+                    index = paren_index + 2; //skip to after star symbol
+                }
             }
             else if paren_index < max_index && reg[paren_index+1] == '+' {
-                paren_star_plus(index, paren_index, &reg, &mut current_state, &mut transition_table, &mut accept_states, "Plus");
-                index = paren_index + 2; //skip to after plus symbol
+                if paren_index + 1 < max_index && reg[paren_index+2] == '|'{
+                    index = paren_or(index, &reg, &mut current_state, &mut transition_table, &mut accept_states);
+                }
+                else {
+                    paren_star_plus(index, paren_index, &reg, &mut current_state, &mut transition_table, &mut accept_states, "Plus");
+                    index = paren_index + 2; //skip to after plus symbol
+                }
             }
             else if paren_index < max_index && reg[paren_index+1] == '|' {
-                //index = paren_or(reg, index, paren_index); //skip to after or statement----------- !!!!!!!!!!!!!
+                index = paren_or(index, &reg, &mut current_state, &mut transition_table, &mut accept_states); 
             }
             else {
                 paren_add(index, paren_index, &reg, &mut current_state, &mut transition_table, &mut accept_states); 
@@ -733,8 +743,8 @@ fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<Stri
         }
         //Check what is on the other side of the or
         if regex[index+2] == '(' {
-            // There is a statement on the other side bounded by parens----------- !!!!!!!!!!!!!
-
+            // There is a statement on the other side bounded by parens ----------- !!!!!!!!!!!!!
+            // Is there another '|' on the other side? ----------- !!!!!!!!!!!!!
         }
         else{
             let right_or = regex[index+2];
@@ -743,54 +753,43 @@ fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<Stri
             if (index+3) < regex.len() && regex[index+3] == '*' {
                 //left_or | starred right_or, check for another |
                 index_jump = 4;
-                if (index+4) < regex.len() && regex[index+4] == '|' {
-                    //call a helper for stacked_or, really complex----------- !!!!!!!!!!!!!
+                // This gets complicated here
+                let state_holder = *state; //this will still be an accept state
+                acc_states = accept.clone(); //these will still be accept states
+                add(&left_or, state, table, accept); //add the first symbol, get back second accept state
+                let state_holder_2 = *state;
+                next_state = *state + 1;
+                let mut acc_holder = acc_states.clone();
+                add_to(&right_or, state_holder, table, &mut acc_holder, next_state);
+                let mut empty = Vec::<String>::new();
+                empty.push("X".to_string());
+                star(&right_or, &mut next_state, table, &mut empty);
+                if !acc_states.contains(&state_holder.to_string()) {
+                    acc_states.push(state_holder.to_string());
                 }
-                else {
-                    // This gets complicated here
-                    let state_holder = *state; //this will still be an accept state
-                    acc_states = accept.clone(); //these will still be accept states
-                    add(&left_or, state, table, accept); //add the first symbol, get back second accept state
-                    let state_holder_2 = *state;
-                    next_state = *state + 1;
-                    let mut acc_holder = acc_states.clone();
-                    add_to(&right_or, state_holder, table, &mut acc_holder, next_state);
-                    let mut empty = Vec::<String>::new();
-                    empty.push("X".to_string());
-                    star(&right_or, &mut next_state, table, &mut empty);
-                    if !acc_states.contains(&state_holder.to_string()) {
-                        acc_states.push(state_holder.to_string());
+                for st in acc_holder {
+                    if !acc_states.contains(&st.to_string()) {
+                        acc_states.push(st.to_string());
                     }
-                    for st in acc_holder {
-                        if !acc_states.contains(&st.to_string()) {
-                            acc_states.push(st.to_string());
-                        }
-                    }
-                    acc_states.push(state_holder_2.to_string());
-                    acc_states.push(next_state.to_string());
                 }
-
+                acc_states.push(state_holder_2.to_string());
+                acc_states.push(next_state.to_string());
             }
             else if (index+3) < regex.len() && regex[index+3] == '+' {
                 //left_or | plus right_or, check for another |
                 index_jump = 4;
-                if (index+4) < regex.len() && regex[index+4] == '|' {
-                    //call a helper for stacked_or, really complex ----------- !!!!!!!!!!!!!
-                }
-                else {
-                    // This gets complicated here
-                    let state_holder = *state; //this will not be an accept state
-                    acc_states = accept.clone(); //these will not be accept states
-                    add(&left_or, state, table, accept); //add the first symbol, get back second accept state
-                    let state_holder_2 = *state;
-                    next_state = *state + 1;
-                    add_to(&right_or, state_holder, table, &mut acc_states, next_state);
-                    let mut empty = Vec::<String>::new();
-                    empty.push("X".to_string());
-                    star(&right_or, &mut next_state, table, &mut empty);
-                    acc_states.push(state_holder_2.to_string());
-                    acc_states.push(next_state.to_string());
-                }
+                // This gets complicated here
+                let state_holder = *state; //this will not be an accept state
+                acc_states = accept.clone(); //these will not be accept states
+                add(&left_or, state, table, accept); //add the first symbol, get back second accept state
+                let state_holder_2 = *state;
+                next_state = *state + 1;
+                add_to(&right_or, state_holder, table, &mut acc_states, next_state);
+                let mut empty = Vec::<String>::new();
+                empty.push("X".to_string());
+                star(&right_or, &mut next_state, table, &mut empty);
+                acc_states.push(state_holder_2.to_string());
+                acc_states.push(next_state.to_string());
             }
             else if (index+3) < regex.len() && regex[index+3] == '|' {
                 //left_or | right_or | another_thing
@@ -1074,49 +1073,64 @@ fn paren_add(index: usize, p_index: usize, regex: &Vec<char>, state: &mut u32, t
 /// - Output: None, the mut values are changed as needed
 fn paren_star_plus(index: usize, p_index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<String>>, accept: &mut Vec<String>, special: &str){
     let mut i = index;
-    let mut _special = 'N'; //get to this later
+    let mut sp = 'N'; //for or statements, serves as the special for that input
     let state_holder = *state;
     let mut acc_holder = accept.clone();
     if special != "Plus" {
         //The origional state is still an accept state in this case
         acc_holder.push(state_holder.to_string());
     }
-    let mut contains_or = false;
     let mut cont = true;
     let mut add_final = true; //for adding the final element outside of special circumstances
 
-    for num in i..p_index {
-        if regex[num] == '|' {
-            contains_or = true;
-        }
-    }
-
-    if contains_or {
-        //statement contains an or ----------- !!!!!!!!!!!!!
-    }
-    else if p_index - i <= 1{
+    if p_index - i <= 1{
         star(&regex[i], state, table, accept);
     }
     else {
-        if regex[i + 1] == '*' {//first statement is starred (some probs w/ ()+) ----------- !!!!!!!!!!!!!
+        if regex[i+2] == '|' {
+            if regex[i+1] == '*' {sp = 'S';}
+            else if regex[i+1] == '+' {sp = 'P';}
+            i = or(i, regex, state, table, sp, accept);
+        }
+        else if regex[i + 1] == '*' {//first statement is starred (some probs w/ ()+)
             plus(&regex[i], state, table, accept);
             i += 2;
             if p_index - i <= 2 && regex[p_index - 1] == '*' {
                 cont = false;
                 add_final = false;
                 acc_holder.push(state.to_string());
-                add_to(&regex[i], *state, table, accept, state_holder);
-                table.remove(table.len()-1 as usize); //remove uneeded table row
-                star(&regex[i], state, table, accept);
+                if special == "Plus" {
+                    acc_holder.push(state_holder.to_string());
+                    add(&regex[i], state, table, accept);
+                    add_to(&regex[i], state_holder, table, accept, *state);
+                    table.remove(table.len()-1 as usize); //remove uneeded table row
+                    add_to(&regex[i-2], *state, table, accept, state_holder + 1);
+                    table.remove(table.len()-1 as usize); //remove uneeded table row
+                    star(&regex[i], state, table, accept);
+                }
+                else {
+                    add_to(&regex[i], *state, table, accept, state_holder);
+                    table.remove(table.len()-1 as usize); //remove uneeded table row
+                    star(&regex[i], state, table, accept);
+                }
                 //*state = state_holder;
             }
             else if p_index - i <= 2 && regex[p_index-1] == '+' || p_index - i <= 1 {
                 cont = false;
                 add_final = false;
-                add_to(&regex[i], *state, table, accept, state_holder);
-                table.remove(table.len()-1 as usize); //remove uneeded table row
-                star(&regex[i], state, table, accept);
-                //*state = state_holder;
+                if special == "Plus" {
+                    add(&regex[i], state, table, accept);
+                    add_to(&regex[i], state_holder, table, accept, *state);
+                    table.remove(table.len()-1 as usize); //remove uneeded table row
+                    add_to(&regex[i-2], *state, table, accept, state_holder + 1);
+                    table.remove(table.len()-1 as usize); //remove uneeded table row
+                    star(&regex[i], state, table, accept);
+                }else{
+                    add_to(&regex[i], *state, table, accept, state_holder);
+                    table.remove(table.len()-1 as usize); //remove uneeded table row
+                    star(&regex[i], state, table, accept);
+                    //*state = state_holder;
+                }
             }
             else {
                 if regex[i + 1] == '*' {
@@ -1249,6 +1263,13 @@ fn paren_star_plus(index: usize, p_index: usize, regex: &Vec<char>, state: &mut 
             }
         }
     }
+}
+
+/// A function to add an or expression that contains a parenthetical statent to the transition table
+/// - Input: Starting index, regex, current state as a mut value, the transition table, character for marking specific symbols before the |, and vector of accept states
+/// - Output: New index to jump to (the index after the last char of the or statement)
+fn paren_or(index: usize, _regex: &Vec<char>, _state: &mut u32, _table: &mut Vec<Vec<String>>, _accept: &mut Vec<String>) -> usize{
+    index
 }
 
 /// For creating a blank row to add to the transition table where all elements are defined

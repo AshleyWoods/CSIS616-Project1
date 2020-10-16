@@ -16,5 +16,6 @@
 ## Concerns and Caveats
     - It is exceedingly hard to make sure I have all possible input cases covered, I tried.
     - I am not fully sure if the dot notation for the output is correct
-    - Support for () or {} only in some cases
+    - Support for () or {} most cases that do not include a '|'
+        - (a*bc)+, (a*bcd)+, etc do not work
     - CURRENTLY HAS NO TESTS
