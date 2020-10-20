@@ -1606,3 +1606,58 @@ fn print_state_diagram(table: &Vec<Vec<String>>){
     //end and close file
     output.write(b"\n}").expect("Unable to write to file");
 }
+
+#[test]
+fn test_scan_regex(){
+    let mut solution = vec!['a','*','b','|','(','c','d','e',')','|','(', 'e','f','g',')'];
+    assert_eq!(scan_regex("a*b|{cde}|(efg)"), solution);
+
+    solution = vec!['!', '@', 'a', 'b', 'z', '8', '+'];
+    assert_eq!(scan_regex("\\w\\dabz8+"), solution);
+}
+
+#[test]
+fn test_invalid_next(){
+    assert_eq!(invalid_next('(', &'*'), false);
+    assert_eq!(invalid_next('|', &'b'), true);
+    assert_eq!(invalid_next('*', &'*'), false);
+    assert_eq!(invalid_next('+', &'a'), true);
+}
+
+#[test]
+fn test_parse_regex(){
+    let scanned_regex = vec!['a','*','b'];
+    let mut table = Vec::<Vec::<String>>::new();
+    let mut row = vec![String::from("0"), String::from("1"), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" ")]; 
+    table.push(row);
+    row = vec![String::from(" "), String::from(String::from(" ")), String::from(String::from(" ")), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" ")];
+    table.push(row);
+    row = vec![String::from("X"), String::from("1")];
+    table.push(row);
+    assert_eq!(parse_regex(scanned_regex), table);
+}
+
+#[test]
+fn test_check_string(){
+    let mut table = Vec::<Vec::<String>>::new();
+    let mut row = vec![String::from("0"), String::from("1"), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" ")]; 
+    table.push(row);
+    row = vec![String::from(" "), String::from(String::from(" ")), String::from(String::from(" ")), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" "), String::from(" ")];
+    table.push(row);
+    row = vec![String::from("X"), String::from("1")];
+    table.push(row);
+
+    assert_eq!(check_string("aaaab", &table), true);
+    assert_eq!(check_string("b", &table), true);
+    assert_eq!(check_string("bbbbb", &table), false);
+    assert_eq!(check_string("", &table), false);
+}
+
+#[test]
+fn test_new_table_row(){
+    let mut empty = Vec::<String>::new();
+    for _char in SIGMA.iter() {
+        empty.push(" ".to_string());
+    }
+    assert_eq!(new_table_row(), empty);
+}
