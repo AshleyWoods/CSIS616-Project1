@@ -241,7 +241,7 @@ fn parse_regex(reg: Vec<char>) -> Vec<Vec<String>>{
             // first check for *, +, or | after the parens close
             if paren_index < max_index && reg[paren_index+1] == '*' {
                 if paren_index + 1 < max_index && reg[paren_index+2] == '|'{
-                    index = paren_or(index, &reg, &mut current_state, &mut transition_table, &mut accept_states);
+                    index = paren_or(index, paren_index, &reg, &mut current_state, &mut transition_table, &mut accept_states);
                 }
                 else {
                     paren_star_plus(index, paren_index, &reg, &mut current_state, &mut transition_table, &mut accept_states, "Star");
@@ -250,7 +250,7 @@ fn parse_regex(reg: Vec<char>) -> Vec<Vec<String>>{
             }
             else if paren_index < max_index && reg[paren_index+1] == '+' {
                 if paren_index + 1 < max_index && reg[paren_index+2] == '|'{
-                    index = paren_or(index, &reg, &mut current_state, &mut transition_table, &mut accept_states);
+                    index = paren_or(index, paren_index, &reg, &mut current_state, &mut transition_table, &mut accept_states);
                 }
                 else {
                     paren_star_plus(index, paren_index, &reg, &mut current_state, &mut transition_table, &mut accept_states, "Plus");
@@ -258,7 +258,7 @@ fn parse_regex(reg: Vec<char>) -> Vec<Vec<String>>{
                 }
             }
             else if paren_index < max_index && reg[paren_index+1] == '|' {
-                index = paren_or(index, &reg, &mut current_state, &mut transition_table, &mut accept_states); 
+                index = paren_or(index, paren_index, &reg, &mut current_state, &mut transition_table, &mut accept_states); 
             }
             else {
                 paren_add(index, paren_index, &reg, &mut current_state, &mut transition_table, &mut accept_states); 
@@ -606,7 +606,45 @@ fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<Stri
     else if special == 'S' {
         index_jump = 4;
         // a*|b* is essentially equivalent to a*|b+
-        if (index+index_jump) < regex.len() && regex[index + index_jump] == '*' || (index+index_jump) < regex.len() && regex[index + index_jump] == '+'{
+        if (index+index_jump - 1) < regex.len() && regex[index+index_jump-1] == '(' {  
+            let mut paren_index = index + 3; //start checking for closing paren in next index
+            let mut paren_layer = 0; //in case there are nested parens
+            let mut cont = true; //for continuing until the closing paren is found
+            let held_state = *state;
+            while cont {
+                //find the matching paren index
+                if regex[paren_index] == '(' {
+                    paren_layer += 1; //enter a nested paren
+                }
+                else if regex[paren_index] == ')' && paren_layer == 0 {
+                    cont = false; //found the closing paren
+                    paren_index -= 1; //to account for the addition at the end of this loop
+                }
+                else if regex[paren_index] == ')' && paren_layer > 0 {
+                    paren_layer -= 1; //wrong closing paren, exit nested paren
+                }
+                paren_index += 1; //check next index
+            }
+            if paren_index + 1 < regex.len() && regex[paren_index + 1] == '*' {
+                paren_star_plus(index + 4, paren_index, regex, state, table, accept, "S");
+            }
+            else if paren_index + 1 < regex.len() && regex[paren_index + 1] == '+' {
+                paren_star_plus(index + 4, paren_index, regex, state, table, accept, "P");
+            }
+            else {
+                paren_add(index + 4, paren_index, regex, state, table, accept);
+            }
+            add_to(&regex[index], held_state, table, accept, *state + 1);
+            *state += 1;
+            star(&regex[index], state, table, accept);
+            table.remove(table.len()-1 as usize); //remove uneeded table row
+            acc_states.push(held_state.to_string());
+            acc_states.push(state.to_string());
+            acc_states.push((*state+1).to_string());
+            *accept = acc_states;
+            return paren_index + 1;
+        }
+        else if (index+index_jump) < regex.len() && regex[index + index_jump] == '*' || (index+index_jump) < regex.len() && regex[index + index_jump] == '+'{
             //a*|b*
             index_jump += 1;
             let right_or = regex[index+3];
@@ -665,7 +703,45 @@ fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<Stri
     }
     else if special == 'P' {
         index_jump = 4;
-        if (index+index_jump) < regex.len() && regex[index + index_jump] == '*' {
+        if (index+index_jump - 1) < regex.len() && regex[index+index_jump-1] == '(' {
+            let mut paren_index = index + 3; //start checking for closing paren in next index
+            let mut paren_layer = 0; //in case there are nested parens
+            let mut cont = true; //for continuing until the closing paren is found
+            let held_state = *state;
+            while cont {
+                //find the matching paren index
+                if regex[paren_index] == '(' {
+                    paren_layer += 1; //enter a nested paren
+                }
+                else if regex[paren_index] == ')' && paren_layer == 0 {
+                    cont = false; //found the closing paren
+                    paren_index -= 1; //to account for the addition at the end of this loop
+                }
+                else if regex[paren_index] == ')' && paren_layer > 0 {
+                    paren_layer -= 1; //wrong closing paren, exit nested paren
+                }
+                paren_index += 1; //check next index
+            }
+            if paren_index + 1 < regex.len() && regex[paren_index + 1] == '*' {
+                paren_star_plus(index + 4, paren_index, regex, state, table, accept, "S");
+            }
+            else if paren_index + 1 < regex.len() && regex[paren_index + 1] == '+' {
+                paren_star_plus(index + 4, paren_index, regex, state, table, accept, "P");
+            }
+            else {
+                paren_add(index + 4, paren_index, regex, state, table, accept);
+            }
+            add_to(&regex[index], held_state, table, accept, *state + 1);
+            *state += 1;
+            star(&regex[index], state, table, accept);
+            table.remove(table.len()-1 as usize); //remove uneeded table row
+            acc_states.push(held_state.to_string());
+            acc_states.push(state.to_string());
+            acc_states.push((*state+1).to_string());
+            *accept = acc_states;
+            return paren_index + 1;
+        }
+        else if (index+index_jump) < regex.len() && regex[index + index_jump] == '*' {
             //a+|b*
             index_jump += 1;
             let right_or = regex[index+3];
@@ -742,9 +818,40 @@ fn or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<Stri
             std::process::exit(1);
         }
         //Check what is on the other side of the or
-        if regex[index+2] == '(' {
-            // There is a statement on the other side bounded by parens ----------- !!!!!!!!!!!!!
-            // Is there another '|' on the other side? ----------- !!!!!!!!!!!!!
+        if regex[index+index_jump] == '(' {
+            let mut paren_index = index + 3; //start checking for closing paren in next index
+            let mut paren_layer = 0; //in case there are nested parens
+            let mut cont = true; //for continuing until the closing paren is found
+            let held_state = *state;
+            while cont {
+                //find the matching paren index
+                if regex[paren_index] == '(' {
+                    paren_layer += 1; //enter a nested paren
+                }
+                else if regex[paren_index] == ')' && paren_layer == 0 {
+                    cont = false; //found the closing paren
+                    paren_index -= 1; //to account for the addition at the end of this loop
+                }
+                else if regex[paren_index] == ')' && paren_layer > 0 {
+                    paren_layer -= 1; //wrong closing paren, exit nested paren
+                }
+                paren_index += 1; //check next index
+            }
+            if paren_index + 1 < regex.len() && regex[paren_index + 1] == '*' {
+                paren_star_plus(index + 3, paren_index, regex, state, table, accept, "S");
+            }
+            else if paren_index + 1 < regex.len() && regex[paren_index + 1] == '+' {
+                paren_star_plus(index + 3, paren_index, regex, state, table, accept, "P");
+            }
+            else {
+                paren_add(index + 3, paren_index, regex, state, table, accept);
+                println!("TABLE {:?}", table);
+            }
+            add_to(&regex[index], held_state, table, accept, *state);
+            table.remove(table.len()-1 as usize); //remove uneeded table row
+            *accept = acc_states;
+            return paren_index + 1
+
         }
         else{
             let right_or = regex[index+2];
@@ -925,6 +1032,35 @@ fn stacked_or(index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<
                 next_state = *state + 1;
                 use_next_state = true;
                 index_jump += 3;
+            }
+            else if regex[index+index_jump + 1] == '(' {
+                let mut paren_index = index + 3; //start checking for closing paren in next index
+                let mut paren_layer = 0; //in case there are nested parens
+                let mut cont = true; //for continuing until the closing paren is found
+                while cont {
+                    //find the matching paren index
+                    if regex[paren_index] == '(' {
+                        paren_layer += 1; //enter a nested paren
+                    }
+                    else if regex[paren_index] == ')' && paren_layer == 0 {
+                        cont = false; //found the closing paren
+                        paren_index -= 1; //to account for the addition at the end of this loop
+                    }
+                    else if regex[paren_index] == ')' && paren_layer > 0 {
+                        paren_layer -= 1; //wrong closing paren, exit nested paren
+                    }
+                    paren_index += 1; //check next index
+                }
+                index_jump = paren_index - index + 1; //set it to the first char inside the paren statement
+                if paren_index + 1 < regex.len() && regex[paren_index + 1] == '*' {
+                    paren_star_plus(index + index_jump + 2, paren_index, regex, state, table, accept, "S");
+                }
+                else if paren_index + 1 < regex.len() && regex[paren_index + 1] == '+' {
+                    paren_star_plus(index + index_jump + 2, paren_index, regex, state, table, accept, "P");
+                }
+                else {
+                    paren_add(index + index_jump + 2, paren_index, regex, state, table, accept);
+                }
             }
             else {
                 // element is only added
@@ -1268,8 +1404,87 @@ fn paren_star_plus(index: usize, p_index: usize, regex: &Vec<char>, state: &mut 
 /// A function to add an or expression that contains a parenthetical statent to the transition table
 /// - Input: Starting index, regex, current state as a mut value, the transition table, character for marking specific symbols before the |, and vector of accept states
 /// - Output: New index to jump to (the index after the last char of the or statement)
-fn paren_or(index: usize, _regex: &Vec<char>, _state: &mut u32, _table: &mut Vec<Vec<String>>, _accept: &mut Vec<String>) -> usize{
-    index
+fn paren_or(index: usize, p_index: usize, regex: &Vec<char>, state: &mut u32, table: &mut Vec<Vec<String>>, accept: &mut Vec<String>) -> usize{
+    let state_holder = *state;
+    let end_state;
+    let mut acc_holder = accept.clone();
+    let mut working_index;
+    if regex[p_index + 1] == '*' {
+        paren_star_plus(index, p_index, regex, state, table, accept, "S");
+    }
+    else if regex[p_index + 1] == '+' {
+        paren_star_plus(index, p_index, regex, state, table, accept, "P");
+    }
+    else {
+        paren_add(index, p_index, regex, state, table, accept);
+    }
+    end_state = *state;
+    working_index = p_index + 2;
+    let mut loop_var = true; //for staying in the while loop
+
+    while loop_var {
+        if working_index < regex.len() && regex[working_index] == '(' {
+            let mut paren_index = index + 1; //start checking for closing paren in next index
+            let mut paren_layer = 0; //in case there are nested parens
+            let mut cont = true; //for continuing until the closing paren is found
+            while cont {
+                //find the matching paren index
+                if regex[paren_index] == '(' {
+                    paren_layer += 1; //enter a nested paren
+                }
+                else if regex[paren_index] == ')' && paren_layer == 0 {
+                    cont = false; //found the closing paren
+                    paren_index -= 1; //to account for the addition at the end of this loop
+                }
+                else if regex[paren_index] == ')' && paren_layer > 0 {
+                    paren_layer -= 1; //wrong closing paren, exit nested paren
+                }
+                paren_index += 1; //check next index
+            }
+
+            if regex[paren_index + 1] == '*' {
+                paren_star_plus(working_index, paren_index, regex, state, table, accept, "S");
+            }
+            else if regex[paren_index + 1] == '+' {
+                paren_star_plus(working_index, paren_index, regex, state, table, accept, "P");
+            }
+            else {
+                paren_add(working_index, paren_index, regex, state, table, accept);
+            }
+
+            working_index = paren_index + 1;
+            if regex[working_index] != '|' { loop_var = false;}
+        }
+        else if working_index+1 < regex.len() && regex[working_index + 1] == '*' {
+            acc_holder.push(state_holder.to_string());
+            acc_holder.push(end_state.to_string());
+            add_to(&regex[working_index], state_holder, table, accept, end_state+1);
+            table.remove(table.len()-1 as usize); //remove uneeded table row
+            accept.push((end_state+1).to_string());
+            working_index += 2;
+            if regex[working_index] != '|' { loop_var = false;}
+        }
+        else if working_index+1 < regex.len() && regex[working_index + 1] == '+' {
+            acc_holder.push(end_state.to_string());
+            add_to(&regex[working_index], state_holder, table, accept, end_state+1);
+            table.remove(table.len()-1 as usize); //remove uneeded table row
+            working_index += 2;
+            if regex[working_index] != '|' { loop_var = false;}
+        }
+        else if working_index >= regex.len() {
+            loop_var = false;
+        }
+        else {
+            add_to(&regex[working_index], state_holder, table, accept, end_state);
+            table.remove(table.len()-1 as usize); //remove uneeded table row
+            working_index += 1;
+            if working_index < regex.len() && regex[working_index] != '|' { loop_var = false;}
+        }
+    }
+
+    *accept = acc_holder;
+    *state = end_state;
+    working_index
 }
 
 /// For creating a blank row to add to the transition table where all elements are defined
