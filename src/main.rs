@@ -218,7 +218,7 @@ fn parse_regex(reg: Vec<char>) -> Vec<Vec<String>>{
                 writeln!(std::io::stderr(), "Invalid Input").unwrap();
                 std::process::exit(1);
             }
-            
+            bookmark = current_state;
             paren_index = index + 1; //start checking for closing paren in next index
             paren_layer = 0; //in case there are nested parens
             cont = true; //for continuing until the closing paren is found
@@ -312,13 +312,13 @@ fn invalid_next(first: char, next: &char) -> bool {
 /// A function to add a single input character to the transition table
 /// - Input: A character that must be input to reach a state, the current state as a mut value, the transition table, and vector of accept states
 /// - Output: None, the mut parameters are changed as needed
-fn add(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>, _accept: &mut Vec<String>) {
+fn add(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>, accept: &mut Vec<String>) {
     let next_state = *state + 1;
     let alpha = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'];
     let num = ['0','1','2','3','4','5','6','7','8','9'];
     if *symbol == '!' {
         //symbol is \w so any alpha value will do
-        //if accept.len() == 1 || accept[1] == state.to_string() {
+        if accept.len() == 1 || accept[1] == state.to_string() {
             //There is only one accept state 
             let mut i = 0; //index for keepting track of where you are in the transition table row
             for char in SIGMA.iter() {
@@ -328,8 +328,8 @@ fn add(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>, _accept: &m
                 }
                 i += 1;
             }
-        //}
-        /*else {
+        }
+        else {
             //There is more than one accept state right now
             for st in &*accept {
                 if st == "X" { continue;}
@@ -342,10 +342,19 @@ fn add(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>, _accept: &m
                     i += 1;
                 }
             }
-        }*/
+            //repeat for current state
+            let mut i = 0; //index for keepting track of where you are in the transition table row
+            for char in SIGMA.iter() {
+                if alpha.contains(char) {
+                    //This is a char needed to transition to the next state
+                    table[*state as usize][i] = next_state.to_string();
+                }
+                i += 1;
+            }
+        }
     }
     else if *symbol == '@' {
-        //if accept.len() == 1 || accept[1] == state.to_string() {
+        if accept.len() == 1 || accept[1] == state.to_string() {
             //symbol is \d so any num value will do
             let mut i = 0; //index for keepting track of where you are in the transition table row
             for char in SIGMA.iter() {
@@ -355,8 +364,8 @@ fn add(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>, _accept: &m
                 }
                 i += 1;
             }
-        //}
-        /*else {
+        }
+        else {
             //There is more than one accept state right now
             for st in &*accept {
                 if st == "X" { continue;}
@@ -369,11 +378,20 @@ fn add(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>, _accept: &m
                     i += 1;
                 }
             }
-        }*/
+            //repeat for current state
+            let mut i = 0; //index for keepting track of where you are in the transition table row
+            for char in SIGMA.iter() {
+                if num.contains(char) {
+                    //This is a char needed to transition to the next state
+                    table[*state as usize][i] = next_state.to_string();
+                }
+                i += 1;
+            }
+        }
     }
     else {
         //symbol is specific
-        //if accept.len() == 1 || accept[1] == state.to_string() {
+        if accept.len() == 1 || accept[1] == state.to_string() {
             let mut i = 0; //index for keepting track of where you are in the transition table row
             for char in SIGMA.iter() {
                 if symbol == char {
@@ -382,8 +400,8 @@ fn add(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>, _accept: &m
                 }
                 i += 1;
             }
-        //}
-        /*else {
+        }
+        else {
             for st in &*accept {
                 if st == "X" {continue;}
                 let mut i = 0;
@@ -394,11 +412,20 @@ fn add(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>, _accept: &m
                     i += 1;
                 }
             }
-        }*/
+            //repeat for current state
+            let mut i = 0;
+            for char in SIGMA.iter() {
+                if symbol == char {
+                    //This is the char needed to transition to the next state
+                    table[*state as usize][i] = next_state.to_string();
+                }
+                i += 1;
+            }
+        }
     }
-    //let mut holder = Vec::<String>::new();
-    //holder.push("X".to_string());
-    //*accept = holder; //resets the accept states
+    let mut holder = Vec::<String>::new();
+    holder.push("X".to_string());
+    *accept = holder; //resets the accept states
     *state = next_state;
     table.push(new_table_row()); //add next row for next state
 }
@@ -411,7 +438,7 @@ fn add_to(symbol:&char, state: u32, table: &mut Vec<Vec<String>>, accept: &mut V
     let num = ['0','1','2','3','4','5','6','7','8','9'];
     if *symbol == '!' {
         //symbol is \w so any alpha value will do
-        if accept.len() == 1 || accept[1] == state.to_string() {
+        //if accept.len() == 1 || accept[1] == state.to_string() {
             //There is only one accept state 
             let mut i = 0; //index for keepting track of where you are in the transition table row
             for char in SIGMA.iter() {
@@ -421,8 +448,8 @@ fn add_to(symbol:&char, state: u32, table: &mut Vec<Vec<String>>, accept: &mut V
                 }
                 i += 1;
             }
-        }
-        else {
+        //}
+        /*else {
             //There is more than one accept state right now
             for st in &*accept {
                 if st == "X" { continue;}
@@ -435,10 +462,10 @@ fn add_to(symbol:&char, state: u32, table: &mut Vec<Vec<String>>, accept: &mut V
                     i += 1;
                 }
             }
-        }
+        }*/
     }
     else if *symbol == '@' {
-        if accept.len() == 1 || accept[1] == state.to_string() {
+        //if accept.len() == 1 || accept[1] == state.to_string() {
             //symbol is \d so any num value will do
             let mut i = 0; //index for keepting track of where you are in the transition table row
             for char in SIGMA.iter() {
@@ -448,8 +475,8 @@ fn add_to(symbol:&char, state: u32, table: &mut Vec<Vec<String>>, accept: &mut V
                 }
                 i += 1;
             }
-        }
-        else {
+        //}
+        /*else {
             //There is more than one accept state right now
             for st in &*accept {
                 if st == "X" { continue;}
@@ -462,11 +489,11 @@ fn add_to(symbol:&char, state: u32, table: &mut Vec<Vec<String>>, accept: &mut V
                     i += 1;
                 }
             }
-        }
+        }*/
     }
     else {
         //symbol is specific
-        if accept.len() == 1 || accept[1] == state.to_string() {
+        //if accept.len() == 1 || accept[1] == state.to_string() {
             let mut i = 0; //index for keepting track of where you are in the transition table row
             for char in SIGMA.iter() {
                 if symbol == char {
@@ -475,8 +502,8 @@ fn add_to(symbol:&char, state: u32, table: &mut Vec<Vec<String>>, accept: &mut V
                 }
                 i += 1;
             }
-        }
-        else {
+        //}
+        /*else {
             for st in &*accept {
                 if st == "X" {continue;}
                 let mut i = 0;
@@ -487,11 +514,60 @@ fn add_to(symbol:&char, state: u32, table: &mut Vec<Vec<String>>, accept: &mut V
                     i += 1;
                 }
             }
-        }
+        }*/
     }
     let mut holder = Vec::<String>::new();
     holder.push("X".to_string());
     *accept = holder; //resets the accept states
+    table.push(new_table_row()); //add next row for next state
+}
+
+/// A function to add a single input character to the transition table from an or statement
+/// Doesn't reset the transition table
+/// - Input: A character that must be input to reach a state, the current state as a mut value, the transition table, and vector of accept states
+/// - Output: None, the mut parameters are changed as needed
+fn add_or(symbol: &char, state: &mut u32, table: &mut Vec<Vec<String>>, _accept: &mut Vec<String>) {
+    let next_state = *state + 1;
+    let alpha = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'];
+    let num = ['0','1','2','3','4','5','6','7','8','9'];
+    if *symbol == '!' {
+        //symbol is \w so any alpha value will do
+            //There is only one accept state 
+            let mut i = 0; //index for keepting track of where you are in the transition table row
+            for char in SIGMA.iter() {
+                if alpha.contains(char) {
+                    //This is a char needed to transition to the next state
+                    table[*state as usize][i] = next_state.to_string();
+                }
+                i += 1;
+            }
+    }
+    else if *symbol == '@' {
+            //symbol is \d so any num value will do
+            let mut i = 0; //index for keepting track of where you are in the transition table row
+            for char in SIGMA.iter() {
+                if num.contains(char) {
+                    //This is a char needed to transition to the next state
+                    table[*state as usize][i] = next_state.to_string();
+                }
+                i += 1;
+            }
+    }
+    else {
+        //symbol is specific
+            let mut i = 0; //index for keepting track of where you are in the transition table row
+            for char in SIGMA.iter() {
+                if symbol == char {
+                    //This is the char needed to transition to the next state
+                    table[*state as usize][i] = next_state.to_string();
+                }
+                i += 1;
+            }
+    }
+    //let mut holder = Vec::<String>::new();
+    //holder.push("X".to_string());
+    //*accept = holder; //resets the accept states
+    *state = next_state;
     table.push(new_table_row()); //add next row for next state
 }
 
@@ -600,8 +676,11 @@ fn or(index: usize, bookmark: &mut u32, regex: &Vec<char>, state: &mut u32, tabl
     let mut acc_states = Vec::new(); //for when things get complex
     acc_states.push("X".to_string());
 
-    if index + 3 < regex.len() && regex[index + 3] == '|' || index + 4 < regex.len() && regex[index + 4] == '|' || index + 5 < regex.len() && regex[index + 5] == '|' {
+    if index + 3 < regex.len() && regex[index + 3] == '|' || index + 5 < regex.len() && regex[index + 5] == '|' {
         //In this situation, there is a 'stacked' or that does not include a parentheses
+        stacked_or(index, bookmark, regex, state, table, accept)
+    }
+    else if index + 4 < regex.len() && regex[index + 4] == '|' && (regex[index + 1] == '*' || regex[index + 3] == '*' || regex[index + 1] == '+' || regex[index + 3] == '+'){
         stacked_or(index, bookmark, regex, state, table, accept)
     }
     else if special == 'S' {
@@ -909,7 +988,7 @@ fn or(index: usize, bookmark: &mut u32, regex: &Vec<char>, state: &mut u32, tabl
                 //let mut st_holder = *state;
                 acc_states = accept.clone();
                 let mut acc_holder = accept.clone();
-                add(&left_or, state, table, accept);
+                add_or(&left_or, state, table, accept);
                 acc_states.push(state.to_string());
                 add_to(&right_or, *bookmark, table, &mut acc_holder, *state +1);
                 //add(&right_or, &mut st_holder, table, &mut acc_states);

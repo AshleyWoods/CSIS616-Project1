@@ -18,3 +18,4 @@
     - I am not fully sure if the dot notation for the output is correct
     - Support for () or {} in most cases, but not in complex cases
         - (a*bc)+, (ab)|(dc)|(ef), etc do not work
+    - I origionally designed this with | having a higher precedence than concatination, I'm not sure if I fixed it all the way
