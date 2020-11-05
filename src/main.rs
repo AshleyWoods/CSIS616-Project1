@@ -878,7 +878,6 @@ fn or(index: usize, bookmark: &mut u32, regex: &Vec<char>, state: &mut u32, tabl
             //acc_states.push(next_state.to_string());
             *state = next_state;
             *accept = acc_states;
-            println!("ACCEPT: {:?}", accept);
             index + index_jump
         }
         else {
@@ -1044,9 +1043,9 @@ fn stacked_or(index: usize, bookmark: &mut u32, regex: &Vec<char>, state: &mut u
     //First statement in the or
     if regex[index + 1] == '*' {
         //first element is starred
-        //st_holder is still an accept state
-        acc_holder.push(st_holder.to_string());
-        add(&left_or, state, table, accept);
+        //bookmark is still an accept state
+        acc_holder.push(bookmark.to_string());
+        add_or(&left_or, state, table, accept);
         star(&left_or, state, table, &mut empty);
         index_jump += 3;
         acc_holder.push(state.to_string());
@@ -1056,7 +1055,7 @@ fn stacked_or(index: usize, bookmark: &mut u32, regex: &Vec<char>, state: &mut u
     else if regex[index + 1] == '+' {
         //first element is plussed
         //st_holder is not an accept state
-        add(&left_or, state, table, accept);
+        add_or(&left_or, state, table, accept);
         star(&left_or, state, table, &mut empty);
         index_jump += 3;
         acc_holder.push(state.to_string());
@@ -1066,8 +1065,9 @@ fn stacked_or(index: usize, bookmark: &mut u32, regex: &Vec<char>, state: &mut u
     else {
         //first element is only added
         //st_holder is not an accept state
-        add(&left_or, state, table, accept);
+        add_or(&left_or, state, table, accept);
         index_jump += 2;
+        acc_holder.push(state.to_string());
     }
 
     //All the middle statemets in the or
@@ -1084,19 +1084,19 @@ fn stacked_or(index: usize, bookmark: &mut u32, regex: &Vec<char>, state: &mut u
                 // element is starred
                 *accept = acc_states.clone();
                 right_or = regex[index + index_jump];
-                acc_holder.push(state.to_string());
+                acc_holder.push(bookmark.to_string());
                 if use_next_state {
-                    *state = st_holder;
-                    acc_holder.push(state.to_string());
-                    add_to(&right_or, *state, table, accept, next_state);
+                    //*state = st_holder;
+                    //acc_holder.push(state.to_string());
+                    add_to(&right_or, *bookmark, table, accept, next_state);
                     *state = next_state;
                     star(&right_or, state, table, &mut empty);
                 }
                 else {
                     next_state = *state + 1;
                     *state = st_holder;
-                    acc_holder.push(state.to_string());
-                    add_to(&right_or, *state, table, accept, next_state);
+                    //acc_holder.push(state.to_string());
+                    add_to(&right_or, *bookmark, table, accept, next_state);
                     *state = next_state;
                     star(&right_or, state, table, &mut empty);
                 }
@@ -1112,14 +1112,14 @@ fn stacked_or(index: usize, bookmark: &mut u32, regex: &Vec<char>, state: &mut u
                 right_or = regex[index + index_jump];
                 if use_next_state {
                     *state = st_holder;
-                    add_to(&right_or, *state, table, accept, next_state);
+                    add_to(&right_or, *bookmark, table, accept, next_state);
                     *state = next_state;
                     star(&right_or, state, table, &mut empty);
                 }
                 else {
                     next_state = *state + 1;
                     *state = st_holder;
-                    add_to(&right_or, *state, table, accept, next_state);
+                    add_to(&right_or, *bookmark, table, accept, next_state);
                     *state = next_state;
                     star(&right_or, state, table, &mut empty);
                 }
@@ -1163,12 +1163,12 @@ fn stacked_or(index: usize, bookmark: &mut u32, regex: &Vec<char>, state: &mut u
                 *state = st_holder;
                 right_or = regex[index + index_jump];
                 if use_next_state {
-                    add_to(&right_or, *state, table, accept, next_state);
+                    add_to(&right_or, *bookmark, table, accept, next_state);
                     acc_holder.push(next_state.to_string());
                     next_state += 1;
                 }
                 else {
-                    add(&right_or, state, table, accept);
+                    add_or(&right_or, bookmark, table, accept);
                     table.remove(table.len()-1 as usize); //remove uneeded table row
                 }
                 index_jump += 2;
@@ -1189,11 +1189,11 @@ fn stacked_or(index: usize, bookmark: &mut u32, regex: &Vec<char>, state: &mut u
         //final element is starred
         *accept = acc_states.clone();
         right_or = regex[index + index_jump];
-        acc_holder.push(state.to_string());
+        acc_holder.push(bookmark.to_string());
         if use_next_state {
             *state = st_holder;
-            acc_holder.push(state.to_string());
-            add_to(&right_or, *state, table, accept, next_state);
+            acc_holder.push(bookmark.to_string());
+            add_to(&right_or, *bookmark, table, accept, next_state);
             *state = next_state;
             star(&right_or, state, table, &mut empty);
             *state = next_state;
@@ -1201,14 +1201,14 @@ fn stacked_or(index: usize, bookmark: &mut u32, regex: &Vec<char>, state: &mut u
         else {
             next_state = *state + 1;
             *state = st_holder;
-            acc_holder.push(state.to_string());
-            add_to(&right_or, *state, table, accept, next_state);
+            acc_holder.push(bookmark.to_string());
+            add_to(&right_or, *bookmark, table, accept, next_state);
             *state = next_state;
             star(&right_or, state, table, &mut empty);
             *state = next_state;
         }
-        acc_holder.push(state.to_string());
-        index_jump += 3;
+        //acc_holder.push(state.to_string());
+        index_jump += 2;
     }
     else if index + index_jump + 1 < regex.len() && regex[index + index_jump + 1] == '+' {
         //final element is plussed
@@ -1217,7 +1217,7 @@ fn stacked_or(index: usize, bookmark: &mut u32, regex: &Vec<char>, state: &mut u
         right_or = regex[index + index_jump];
         if use_next_state {
             *state = st_holder;
-            add_to(&right_or, *state, table, accept, next_state);
+            add_to(&right_or, *bookmark, table, accept, next_state);
             *state = next_state;
             star(&right_or, state, table, &mut empty);
             *state = next_state;
@@ -1225,13 +1225,13 @@ fn stacked_or(index: usize, bookmark: &mut u32, regex: &Vec<char>, state: &mut u
         else {
             next_state = *state + 1;
             *state = st_holder;
-            add_to(&right_or, *state, table, accept, next_state);
+            add_to(&right_or, *bookmark, table, accept, next_state);
             *state = next_state;
             star(&right_or, state, table, &mut empty);
             *state = next_state;
         }
-        acc_holder.push(state.to_string());
-        index_jump += 3;
+        //acc_holder.push(state.to_string());
+        index_jump += 2;
     }
     else {
         //final element is only added
@@ -1239,25 +1239,25 @@ fn stacked_or(index: usize, bookmark: &mut u32, regex: &Vec<char>, state: &mut u
         *state = st_holder;
         right_or = regex[index + index_jump];
         if use_next_state {
-            add_to(&right_or, *state, table, accept, next_state);
-            acc_holder.push(next_state.to_string());
+            add_to(&right_or, *bookmark, table, accept, next_state);
+            //acc_holder.push(next_state.to_string());
             *state = next_state;
         }
         else {
-            add(&right_or, state, table, accept);
+            add_or(&right_or, bookmark, table, accept);
             table.remove(table.len()-1 as usize); //remove uneeded table row
         }
         index_jump += 1;
     }
-    
+
     //Filter out repeat states
-    acc_states = Vec::<String>::new();
+    //acc_states = Vec::<String>::new();
     for st in acc_holder {
         if !acc_states.contains(&st.to_string()) {
             acc_states.push(st.to_string());
         }
     }
-    
+
     *accept = acc_states;
     index + index_jump
 }
