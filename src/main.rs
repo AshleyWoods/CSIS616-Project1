@@ -175,6 +175,7 @@ fn parse_regex(reg: Vec<char>) -> Vec<Vec<String>>{
     let mut paren_index; //for finding the index of the closing paren
     let mut cont; //for use in while loops for finding closing paren
     let mut bookmark = 0; //because concatination takes precidence, bookmarking state to loop back to for or statements. Heck
+    let mut p_bookmark = 0; //for parens and bookmarks
     let max_index = reg.len() - 1;
     
     //Loop through the scanned input and parse it
@@ -187,7 +188,7 @@ fn parse_regex(reg: Vec<char>) -> Vec<Vec<String>>{
             //symbol is an alphabet character, \w, or \d
             if index < max_index && reg[index+1] == '*' {
                 if index + 1 < max_index && reg[index+2] == '|'{
-                    index = or(index, &mut bookmark, &reg, &mut current_state, &mut transition_table, 'S', &mut accept_states);
+                    index = or(index, &mut p_bookmark, &reg, &mut current_state, &mut transition_table, 'S', &mut accept_states);
                 }
                 else {
                     star(&reg[index], &mut current_state, &mut transition_table, &mut accept_states);
@@ -196,7 +197,7 @@ fn parse_regex(reg: Vec<char>) -> Vec<Vec<String>>{
             }
             else if index < max_index && reg[index+1] == '+' {
                 if index + 1 < max_index && reg[index+2] == '|'{
-                    index = or(index, &mut bookmark, &reg, &mut current_state, &mut transition_table, 'P', &mut accept_states);
+                    index = or(index, &mut p_bookmark, &reg, &mut current_state, &mut transition_table, 'P', &mut accept_states);
                 }
                 else {
                     plus(&reg[index], &mut current_state, &mut transition_table, &mut accept_states);
@@ -204,7 +205,7 @@ fn parse_regex(reg: Vec<char>) -> Vec<Vec<String>>{
                 }
             }
             else if index < max_index && reg[index+1] == '|' {
-                index = or(index, &mut bookmark, &reg, &mut current_state, &mut transition_table, 'N', &mut accept_states); //skip to after or statement
+                index = or(index, &mut p_bookmark, &reg, &mut current_state, &mut transition_table, 'N', &mut accept_states); //skip to after or statement
             }
             else {
                 if bookmark == 0 { //makes sure not to reset accept states
@@ -1270,11 +1271,17 @@ fn paren_add(index: usize, bookmark: &mut u32, p_index: usize, regex: &Vec<char>
     let mut special = 'N';
 
     while i < p_index {
-        if i + 3 < p_index && regex[i + 3] == '|' || i + 4 < p_index && regex[i + 4] == '|' || i + 5 < p_index && regex[i + 5] == '|' {
+        if i + 3 < p_index && regex[i + 3] == '|' {
             //statement is x|y|z or x*|y|z or x*|y*|z etc.
             i += stacked_or(i, bookmark, regex, state, table, accept);
         }
-        else if i + 1 < p_index && regex[i + 1] == '|' || i + 2 < p_index && regex[i + 2] == '|' {
+        else if index + 4 < regex.len() && regex[index + 4] == '|' && (regex[index + 1] == '*' || regex[index + 3] == '*' || regex[index + 1] == '+' || regex[index + 3] == '+'){
+            i += stacked_or(i, bookmark, regex, state, table, accept);
+        }
+        else if i + 5 < p_index && regex[i + 5] == '|' && (regex[index + 1] == '*' || regex[index + 1] == '+') && (regex[index + 3] == '*' || regex[index + 3] == '+') {
+            i += stacked_or(i, bookmark, regex, state, table, accept);
+        }
+        else if i + 1 < p_index && regex[i + 1] == '|' || (i + 2 < p_index && regex[i + 2] == '|' && (regex[i + 1] == '*' || regex[i + 1] == '+')) {
             //statement is a single or z|a, z*|a, etc.
             if regex[i+1] == '*' {special = 'S';}
             else if regex[i+1] == '+' {special = 'P';}
@@ -1292,7 +1299,7 @@ fn paren_add(index: usize, bookmark: &mut u32, p_index: usize, regex: &Vec<char>
         }
         else {
             //statement is plain
-            add(&regex[i], state, table, accept);
+            add_or(&regex[i], state, table, accept);
             i += 1;
         }
     }
